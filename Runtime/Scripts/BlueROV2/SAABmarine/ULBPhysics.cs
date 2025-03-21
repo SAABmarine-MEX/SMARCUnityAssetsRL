@@ -1,8 +1,10 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 using DefaultNamespace.LookUpTable;
 using MathNet.Numerics.LinearAlgebra;
-
+using MathNet.Numerics.LinearAlgebra.Double;
 
 namespace DefaultNamespace
 {

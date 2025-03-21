@@ -9,7 +9,7 @@ using VehicleComponents.Actuators;
 
 namespace DefaultNamespace
 {
-    public class BrovPhysics : MonoBehaviour
+    public class BrovPhysicsPrior : MonoBehaviour
     {
         public ArticulationBody mainBody;
         public ArticulationBody prop_top_back_right;
@@ -85,6 +85,14 @@ namespace DefaultNamespace
         Vector3 inputTorque = Vector3.zero;
 
         // Maybe not the best to have these globally but the purpose is to easily get the velocities to Agent class
+        // Positions
+        float x;
+        float y;
+        float z;
+        float phi; 
+        float theta;
+        float tau;
+        // Velocites
         float u;
         float v;
         float w;
@@ -135,19 +143,31 @@ namespace DefaultNamespace
         {
             return transform.localPosition;
         }
+
+        public Vector3 GetLocalPosNED()
+        {
+            return new Vector3(x, y, z);
+        }
         public Quaternion GetLocalRot()
         {
             return transform.localRotation;
         }
-		public Vector3 GetLocalRotEuler()
+        public Vector3 GetLocalRotEuler()
         {
             return transform.localRotation.eulerAngles;
+        }
+        public Vector3 GetLocalRotEulerNED()
+        {
+            return new Vector3(phi*Mathf.Rad2Deg, theta*Mathf.Rad2Deg, tau*Mathf.Rad2Deg);
         }
         // TODO: make a method that gives the full state combining the above
         public Vector3 GetForwardUnitVec() { return transform.forward; }
 
         public void SetInput(Vector3 force, Vector3 torque)
         {
+            // Prior residual
+            force[0] *= 1.5f; force[1] *= 1.5f; force[2] *= 1.5f;
+            torque[0] *= 1.5f; torque[1] *= 1.5f; torque[2] *= 1.5f;
             inputForce += force;
             inputTorque += torque;
         }
@@ -174,16 +194,32 @@ namespace DefaultNamespace
         {
             // Get world rotation
             var world_rot = mainBody.transform.rotation.eulerAngles; 
-            var world_pos = mainBody.transform.position; 
+            var world_pos = mainBody.transform.position;
+            // Get local position and rotation instead. This is needed since we will have multiple envs in the same scene
+            var localRot = mainBody.transform.localRotation.eulerAngles;
+            var localPos = mainBody.transform.localPosition;
+            
+            //var localRot2 =
             
             // Get and convert state vector from global to local reference point
+            // Velocity
             var inverseTransformDirection = mainBody.transform.InverseTransformDirection(mainBody.linearVelocity); // Local frame vel
             var transformAngularVelocity = mainBody.transform.InverseTransformDirection(mainBody.angularVelocity); // Local frame angular vel (gives negative velocities)
+            // Position
+            var inverseTransformDirectionPos = mainBody.transform.InverseTransformDirection(mainBody.transform.position); // Local frame pos
+            var transformAngularRot = mainBody.transform.InverseTransformDirection(mainBody.transform.rotation.eulerAngles); // Local frame rot
+            var xyz = inverseTransformDirectionPos.To<NED>().ToDense();
+            x = (float) xyz[0];
+            y = (float) xyz[1];
+            z = (float) xyz[2];
+            //float phi_local = FRD.ConvertRotationFromRUF(transformAngularRot).ToDense(); // FRD is same as NED for ANGLES ONLY
+            //var phiThetaTau2 = ConvertRUFtoFRD(transformAngularRot);
             
             // Convert angles, angular velocities and velocities to OSBS coordinate system
-            var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
-            float phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
-            float theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
+            var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense(); // TODO: is this rotation and how to get it to local?
+            phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
+            theta = (float) (Mathf.Deg2Rad * phiThetaTau[1]);
+            tau = (float) (Mathf.Deg2Rad * phiThetaTau[2]);
             var uvw = inverseTransformDirection.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
             u = (float) uvw[0];
             v = (float) uvw[1];

@@ -1,5 +1,7 @@
 using UnityEngine;
+using Unity.Robotics.Core; // For Clock
 using Unity.Robotics.ROSTCPConnector; // For ROS 2 TCP connector
+using ROSMessage = Unity.Robotics.ROSTCPConnector.MessageGeneration.Message;
 using pos = RosMessageTypes.Brov.PosMsg;
 
 public class ReferenceUpdater : MonoBehaviour

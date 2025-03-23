@@ -216,7 +216,7 @@ ArticulationBody:
   m_Enabled: 1
   serializedVersion: 5
   m_Mass: 0.0000001
-  m_ParentAnchorPosition: {x: 0.21813965, y: 0.05183719, z: -0.11682129}
+  m_ParentAnchorPosition: {x: 0.21818285, y: 0.0518372, z: -0.1168}
   m_ParentAnchorRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
   m_AnchorPosition: {x: 0, y: 0, z: 0}
   m_AnchorRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
@@ -329,7 +329,7 @@ ArticulationBody:
   m_Enabled: 1
   serializedVersion: 5
   m_Mass: 0.0000001
-  m_ParentAnchorPosition: {x: -0.100097656, y: -0.011756495, z: 0.13781738}
+  m_ParentAnchorPosition: {x: -0.1001467, y: -0.0117565, z: 0.13776536}
   m_ParentAnchorRotation: {x: 0.28760624, y: 0.28760624, z: 0.64597416, w: 0.64597416}
   m_AnchorPosition: {x: 0, y: 0, z: 0}
   m_AnchorRotation: {x: 0.28760624, y: 0.28760624, z: 0.64597416, w: 0.64597416}
@@ -566,7 +566,7 @@ ArticulationBody:
   m_Enabled: 1
   serializedVersion: 5
   m_Mass: 0.0000001
-  m_ParentAnchorPosition: {x: 0.21813965, y: 0.052097097, z: 0.123535156}
+  m_ParentAnchorPosition: {x: 0.21818285, y: 0.0520971, z: 0.123514295}
   m_ParentAnchorRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
   m_AnchorPosition: {x: 0, y: 0, z: 0}
   m_AnchorRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
@@ -758,7 +758,7 @@ ArticulationBody:
   m_Enabled: 1
   serializedVersion: 5
   m_Mass: 0.0000001
-  m_ParentAnchorPosition: {x: -0.21704102, y: 0.052032202, z: 0.12365723}
+  m_ParentAnchorPosition: {x: -0.2170662, y: 0.0520322, z: 0.1236143}
   m_ParentAnchorRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
   m_AnchorPosition: {x: 0, y: 0, z: 0}
   m_AnchorRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
@@ -880,7 +880,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15132e9a14d25871ca9b9b1f7c962e44, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mainBody: {fileID: 0}
+  mainBody: {fileID: 3779373301960282707}
   prop_top_back_right: {fileID: 0}
   prop_top_front_right: {fileID: 0}
   prop_top_back_left: {fileID: 0}
@@ -1421,7 +1421,7 @@ Transform:
   m_GameObject: {fileID: 2729654684962885954}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1351.6505, y: -0.1595654, z: 1150.5093}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2093,7 +2093,7 @@ ArticulationBody:
   m_Enabled: 1
   serializedVersion: 5
   m_Mass: 0.0000001
-  m_ParentAnchorPosition: {x: 0.10083008, y: -0.011856899, z: 0.13769531}
+  m_ParentAnchorPosition: {x: 0.10079113, y: -0.0118569, z: 0.13771954}
   m_ParentAnchorRotation: {x: -0.28760624, y: -0.28760624, z: 0.64597416, w: 0.64597416}
   m_AnchorPosition: {x: 0, y: 0, z: 0}
   m_AnchorRotation: {x: -0.28760624, y: -0.28760624, z: 0.64597416, w: 0.64597416}
@@ -3093,7 +3093,7 @@ ArticulationBody:
   m_Enabled: 1
   serializedVersion: 5
   m_Mass: 0.0000001
-  m_ParentAnchorPosition: {x: 0.099609375, y: -0.011739597, z: -0.14624023}
+  m_ParentAnchorPosition: {x: 0.09956154, y: -0.0117396, z: -0.1462246}
   m_ParentAnchorRotation: {x: 0.28760624, y: 0.28760624, z: 0.64597416, w: 0.64597416}
   m_AnchorPosition: {x: 0, y: 0, z: 0}
   m_AnchorRotation: {x: 0.28760624, y: 0.28760624, z: 0.64597416, w: 0.64597416}
@@ -3206,7 +3206,7 @@ ArticulationBody:
   m_Enabled: 1
   serializedVersion: 5
   m_Mass: 0.0000001
-  m_ParentAnchorPosition: {x: -0.21704102, y: 0.052032202, z: -0.11608887}
+  m_ParentAnchorPosition: {x: -0.2170662, y: 0.0520322, z: -0.1160516}
   m_ParentAnchorRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
   m_AnchorPosition: {x: 0, y: 0, z: 0}
   m_AnchorRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
@@ -3533,7 +3533,7 @@ ArticulationBody:
   m_Enabled: 1
   serializedVersion: 5
   m_Mass: 0.0000001
-  m_ParentAnchorPosition: {x: -0.09887695, y: -0.011800706, z: -0.14624023}
+  m_ParentAnchorPosition: {x: -0.0988914, y: -0.0118007, z: -0.1462701}
   m_ParentAnchorRotation: {x: -0.28760624, y: -0.28760624, z: 0.64597416, w: 0.64597416}
   m_AnchorPosition: {x: 0, y: 0, z: 0}
   m_AnchorRotation: {x: -0.28760624, y: -0.28760624, z: 0.64597416, w: 0.64597416}

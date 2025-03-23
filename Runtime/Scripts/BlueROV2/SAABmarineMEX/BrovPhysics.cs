@@ -85,7 +85,8 @@ namespace DefaultNamespace
         Vector3 inputTorque = Vector3.zero;
 
         // Maybe not the best to have these globally but the purpose is to easily get the velocities to Agent class
-        float u;
+        float x; float y; float z;
+		float u;
         float v;
         float w;
         float p;
@@ -94,25 +95,26 @@ namespace DefaultNamespace
         
         void Start()
         {
-            // Get all propeller components
-            PropTopBackRight = GameObject.Find("PropTopBackRight").GetComponent<Propeller>();
-            PropTopFrontRight = GameObject.Find("PropTopFrontRight").GetComponent<Propeller>();
-            PropTopBackLeft = GameObject.Find("PropTopBackLeft").GetComponent<Propeller>();
-            PropTopFrontLeft = GameObject.Find("PropTopFrontLeft").GetComponent<Propeller>();
-            PropBotBackRight = GameObject.Find("PropBotBackRight").GetComponent<Propeller>();
-            PropBotFrontRight = GameObject.Find("PropBotFrontRight").GetComponent<Propeller>();
-            PropBotBackLeft = GameObject.Find("PropBotBackLeft").GetComponent<Propeller>();
-            PropBotFrontLeft = GameObject.Find("PropBotFrontLeft").GetComponent<Propeller>();
             
             // Get all propeller articulation bodies
-            prop_top_back_right = GameObject.Find("prop_top_back_right_link").GetComponent<ArticulationBody>();
-            prop_top_front_right = GameObject.Find("prop_top_front_right_link").GetComponent<ArticulationBody>();
-            prop_top_back_left = GameObject.Find("prop_top_back_left_link").GetComponent<ArticulationBody>();
-            prop_top_front_left = GameObject.Find("prop_top_front_left_link").GetComponent<ArticulationBody>();
-            prop_bot_back_right = GameObject.Find("prop_bot_back_right_link").GetComponent<ArticulationBody>();
-            prop_bot_front_right = GameObject.Find("prop_bot_front_right_link").GetComponent<ArticulationBody>();
-            prop_bot_back_left = GameObject.Find("prop_bot_back_left_link").GetComponent<ArticulationBody>();
-            prop_bot_front_left = GameObject.Find("prop_bot_front_left_link").GetComponent<ArticulationBody>();
+            prop_top_back_right = transform.Find("odom/base_link/prop_top_back_right_link").GetComponent<ArticulationBody>();
+            prop_top_front_right = transform.Find("odom/base_link/prop_top_front_right_link").GetComponent<ArticulationBody>();
+            prop_top_back_left = transform.Find("odom/base_link/prop_top_back_left_link").GetComponent<ArticulationBody>();
+            prop_top_front_left = transform.Find("odom/base_link/prop_top_front_left_link").GetComponent<ArticulationBody>();
+            prop_bot_back_right = transform.Find("odom/base_link/prop_bot_back_right_link").GetComponent<ArticulationBody>();
+            prop_bot_front_right = transform.Find("odom/base_link/prop_bot_front_right_link").GetComponent<ArticulationBody>();
+            prop_bot_back_left = transform.Find("odom/base_link/prop_bot_back_left_link").GetComponent<ArticulationBody>();
+            prop_bot_front_left = transform.Find("odom/base_link/prop_bot_front_left_link").GetComponent<ArticulationBody>();
+            // Get all propeller components
+            PropTopBackRight = transform.Find("odom/base_link/prop_top_back_right_link/PropTopBackRight").GetComponent<Propeller>();
+            PropTopFrontRight = transform.Find("odom/base_link/prop_top_front_right_link/PropTopFrontRight").GetComponent<Propeller>();
+            PropTopBackLeft = transform.Find("odom/base_link/prop_top_back_left_link/PropTopBackLeft").GetComponent<Propeller>();
+            PropTopFrontLeft = transform.Find("odom/base_link/prop_top_front_left_link/PropTopFrontLeft").GetComponent<Propeller>();
+            PropBotBackRight = transform.Find("odom/base_link/prop_bot_back_right_link/PropBotBackRight").GetComponent<Propeller>();
+            PropBotFrontRight = transform.Find("odom/base_link/prop_bot_front_right_link/PropBotFrontRight").GetComponent<Propeller>();
+            PropBotBackLeft = transform.Find("odom/base_link/prop_bot_back_left_link/PropBotBackLeft").GetComponent<Propeller>();
+            PropBotFrontLeft = transform.Find("odom/base_link/prop_bot_front_left_link/PropBotFrontLeft").GetComponent<Propeller>();
+            
             
             // Get camera and set camera offset
             myCamera = Camera.main;
@@ -166,25 +168,39 @@ namespace DefaultNamespace
             Vector3 worldPosition = parentTransform.TransformPoint(localPosition);
             //Quaternion worldRotation = parentTransform.rotation * localRotation;
 
-            mainBody.TeleportRoot(worldPosition, localRotation); // TODO: gör detta till metod i Physics scriptet
-            // TODO: add so it is not moving in the begining
+            mainBody.TeleportRoot(worldPosition, localRotation);
         }
         
         void FixedUpdate()
         {
+			// --- Get state
+			// -- Get position TODO: goal; local position 
             // Get world rotation
             var world_rot = mainBody.transform.rotation.eulerAngles; 
             var world_pos = mainBody.transform.position; 
-            
+
+			// TODO: what is the difference from doing this
+			var inverseTransformDirectionPos = mainBody.transform.InverseTransformDirection(mainBody.transform.position); // Local frame pos
+            // TODO: compared to this
+			//mainBody.transform.localPosition
+			var xyz = inverseTransformDirectionPos.To<NED>().ToDense(); // TODO: maybe to do this?
+            x = (float) xyz[0];
+            y = (float) xyz[1];
+            z = (float) xyz[2];
+			
+            // TODO: is this world rot in NED? How to get local. Confusing that it says velocity
+            var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
+			float phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
+            float theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
+			float tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
+
+			// -- Get velocity
             // Get and convert state vector from global to local reference point
             var inverseTransformDirection = mainBody.transform.InverseTransformDirection(mainBody.linearVelocity); // Local frame vel
             var transformAngularVelocity = mainBody.transform.InverseTransformDirection(mainBody.angularVelocity); // Local frame angular vel (gives negative velocities)
-            
             // Convert angles, angular velocities and velocities to OSBS coordinate system
-            var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
-            float phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
-            float theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
-            var uvw = inverseTransformDirection.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
+            // Body frame velocities in NED
+			var uvw = inverseTransformDirection.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
             u = (float) uvw[0];
             v = (float) uvw[1];
             w = (float) uvw[2];

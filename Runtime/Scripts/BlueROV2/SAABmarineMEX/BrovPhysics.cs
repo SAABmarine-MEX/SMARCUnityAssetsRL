@@ -52,7 +52,7 @@ namespace DefaultNamespace
         
         //Added from OSBS
         //Rotational damping (Ns/m)
-        double Xuu = 141; // #1.0
+        public double Xuu = 141; // #1.0
         double Yvv = 217; // #100.0
         double Zww = 190; // #100.0
         double Kpp = 1.19; // #10.0
@@ -85,7 +85,10 @@ namespace DefaultNamespace
         Vector3 inputTorque = Vector3.zero;
 
         // Maybe not the best to have these globally but the purpose is to easily get the velocities to Agent class
-        float x; float y; float z;
+        // Positions
+		float x; float y; float z;
+		float phi; float theta; float tau;
+		// Velocities
 		float u;
         float v;
         float w;
@@ -95,7 +98,6 @@ namespace DefaultNamespace
         
         void Start()
         {
-            
             // Get all propeller articulation bodies
             prop_top_back_right = transform.Find("odom/base_link/prop_top_back_right_link").GetComponent<ArticulationBody>();
             prop_top_front_right = transform.Find("odom/base_link/prop_top_front_right_link").GetComponent<ArticulationBody>();
@@ -116,12 +118,12 @@ namespace DefaultNamespace
             PropBotFrontLeft = transform.Find("odom/base_link/prop_bot_front_left_link/PropBotFrontLeft").GetComponent<Propeller>();
             
             
-            // Get camera and set camera offset
+            // Get camera and set camera offset TODO: this is not needed anymore with the new 3rd person camera? test
             myCamera = Camera.main;
             camera_offset = new Vector3(0f, 2f, -4f);
             
             // Get mass from unity + one time calculations
-            m = mainBody.mass; // mass 13.5. hk-demo mass: 14.57kg
+            m = mainBody.mass; // hk-demo mass: 14.57kg
             I_x = mainBody.inertiaTensor.x;
             I_y = mainBody.inertiaTensor.z;
             I_z = mainBody.inertiaTensor.y; // y z switch. Unity to NED coordinates
@@ -137,6 +139,10 @@ namespace DefaultNamespace
         {
             return transform.localPosition;
         }
+		public Vector3 GetLocalPosNED()
+        {
+            return new Vector3(x, y, z);
+        }
         public Quaternion GetLocalRot()
         {
             return transform.localRotation;
@@ -144,6 +150,10 @@ namespace DefaultNamespace
 		public Vector3 GetLocalRotEuler()
         {
             return transform.localRotation.eulerAngles;
+        }
+		public Vector3 GetLocalRotEulerNED()
+        {
+            return new Vector3(phi*Mathf.Rad2Deg, theta*Mathf.Rad2Deg, tau*Mathf.Rad2Deg);
         }
         // TODO: make a method that gives the full state combining the above
         public Vector3 GetForwardUnitVec() { return transform.forward; }
@@ -177,22 +187,26 @@ namespace DefaultNamespace
 			// -- Get position TODO: goal; local position 
             // Get world rotation
             var world_rot = mainBody.transform.rotation.eulerAngles; 
-            var world_pos = mainBody.transform.position; 
+            var world_pos = mainBody.transform.position;
 
 			// TODO: what is the difference from doing this
 			var inverseTransformDirectionPos = mainBody.transform.InverseTransformDirection(mainBody.transform.position); // Local frame pos
             // TODO: compared to this
 			//mainBody.transform.localPosition
-			var xyz = inverseTransformDirectionPos.To<NED>().ToDense(); // TODO: maybe to do this?
+			var xyz = inverseTransformDirectionPos.To<NED>().ToDense(); // Transform local position to NED
             x = (float) xyz[0];
             y = (float) xyz[1];
             z = (float) xyz[2];
+			//print("NED pos");
+			//print(xyz[0]+","+xyz[1]+","+xyz[2]);
 			
             // TODO: is this world rot in NED? How to get local. Confusing that it says velocity
             var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
-			float phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
-            float theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
-			float tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
+			phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
+            theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
+			tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
+			//print("NED rot");
+			//print(phiThetaTau[0]+", "+phiThetaTau[1]+", "+phiThetaTau[2]);
 
 			// -- Get velocity
             // Get and convert state vector from global to local reference point

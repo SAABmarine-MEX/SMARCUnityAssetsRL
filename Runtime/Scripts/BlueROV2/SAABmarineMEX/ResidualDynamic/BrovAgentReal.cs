@@ -15,7 +15,7 @@ using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using DefaultNamespace;
 
-public class BrovAgentPrior : Agent
+public class BrovAgentReal : Agent
 {
     // For interacting with the Brov
     private BrovPhysics brovPhysics;
@@ -29,9 +29,11 @@ public class BrovAgentPrior : Agent
     {
         print("Init");
         brovPhysics = GetComponent<BrovPhysics>();
+        // Here you can change physics parameters by changing brovPhysics's attributes 
+        //brovPhysics.Xuu = 142; // example
         
         // Start position
-        Vector3 localPosition = new Vector3(0f, -3f, 0f);
+        Vector3 localPosition = new Vector3(0f, 0f, 0f);
         Quaternion localRotation = Quaternion.Euler(0, 0, 0);
         //brovPhysics.SetPosAndRot(localPosition, localRotation);
     }
@@ -53,7 +55,7 @@ public class BrovAgentPrior : Agent
          */
         ActionSegment<float> actionsSeg = actions.ContinuousActions;
         if (!isHeuristic) // If action from rl, it needs to be scaled from [-1, 1] to [minValue, maxValue] for each dof
-        { 
+        { // TODO: test what happens when using python
             print("SCALE!!");
             int numActions = actionsSeg.Length;
             Vector2[] ranges = new Vector2[numActions];
@@ -78,7 +80,7 @@ public class BrovAgentPrior : Agent
         inputForce  = new Vector3(actionsSeg[0], actionsSeg[1], actionsSeg[2]);
         inputTorque = new Vector3(actionsSeg[3], actionsSeg[4], actionsSeg[5]);
         
-        brovPhysics.SetInput(inputForce, inputTorque);
+        brovPhysics.SetInput(inputForce*1.5f, inputTorque*1.5f); // Residual dynamic
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {

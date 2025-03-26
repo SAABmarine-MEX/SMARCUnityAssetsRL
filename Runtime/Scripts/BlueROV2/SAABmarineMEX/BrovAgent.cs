@@ -39,36 +39,42 @@ public class BrovAgent : Agent
     public override void Initialize()
     {
         print("Init");
-        brovPhysics = GetComponent<BrovPhysics>();
+        //brovPhysics = GetComponent<BrovPhysics>();
+        brovPhysics = GetComponentInParent<BrovPhysics>();
         prevPos = brovPhysics.GetLocalPos();
         // Get gate positions
+        
          GameObject gates = GameObject.Find("Gates");
            if (gates != null)
            {
                // Iterate over direct children of Gates. They are already sorted from Unity scene, i.e first child is first gate, second is second etc.
                foreach (Transform child in gates.transform)
                {
-                   Debug.Log("Found child: " + child.gameObject.name);
-                   Debug.Log("Child's position: " + child.localPosition);
+                   //Debug.Log("Found child: " + child.gameObject.name);
+                   //Debug.Log("Child's position: " + child.localPosition);
                    gatePositions.Add(child.localPosition);
                    // You can also access the child object:
                    GameObject childObject = child.gameObject;
                }
-               Debug.Log("tot n:" + gatePositions.Count);
+               //Debug.Log("tot n:" + gatePositions.Count);
            }
            else
            {
-               Debug.LogError("Gates object not found!");
+              Debug.LogError("Gates object not found!");
            }
-         
     }
 
     public override void OnEpisodeBegin()
     {
         // Agent's starting state for the track
         // TODO: later, make the starting positions more random
-        Vector3 localPosition = new Vector3(2420.036f, 0.972f, -269.508f);
+        Vector3 localPosition = new Vector3(2.9f, 0.5f, 0f);
         Quaternion localRotation = Quaternion.Euler(0, -90, 0);
+        print("EPISODE Begin");
+        if (brovPhysics == null)
+        {
+            Debug.LogError("DÅLIGT" + gameObject.name);
+        } else{Debug.Log("VET " + gameObject.name); }
         brovPhysics.SetZeroVels();
         brovPhysics.SetPosAndRot(localPosition, localRotation);
 		
@@ -80,7 +86,7 @@ public class BrovAgent : Agent
     
     public override void CollectObservations(VectorSensor sensor)
     {
-        /* Sensor/perception input for the agent */
+        // Sensor/perception input for the agent /
         // State
         //sensor.AddObservation(brovPhysics.GetLocalPos());
         sensor.AddObservation(brovPhysics.GetLocalRot()); // Orientation quaternion
@@ -95,6 +101,7 @@ public class BrovAgent : Agent
         // Previous action
         sensor.AddObservation(prevActions); // TODO: maybe change this to be ActionSegment data type?
     }
+    
     // What actions the agent can preform
     public override void OnActionReceived(ActionBuffers actions)
     {
@@ -104,16 +111,7 @@ public class BrovAgent : Agent
         if (!isHeuristic) // If action from rl, it needs to be scaled from [-1, 1] to [minValue, maxValue] for each dof
         {
             // x,y,z noted with irl coord sys
-            /*
-            float forceYNorm = actionsSeg[0];
-            float forceZNorm = actionsSeg[1];
-            float forceXNorm = actionsSeg[2];
-
-            float torquePitchNorm = actionsSeg[3];
-            float torqueYawNorm = actionsSeg[4];
-            float torqueRollNorm = actionsSeg[5];
-            */
-
+            // TODO: make the scaling into a method
             int numActions = actionsSeg.Length;
             Vector2[] ranges = new Vector2[numActions];
             // min max ranges for each dof
@@ -140,7 +138,7 @@ public class BrovAgent : Agent
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        if (!isHeuristic) { isHeuristic = true; } 
+        if (!isHeuristic) { isHeuristic = true; }
         ActionSegment<float> continuousActions = actionsOut.ContinuousActions;    
         // Teleop
         if (Input.GetKey(KeyCode.W))
@@ -220,6 +218,7 @@ public class BrovAgent : Agent
 	
         // r_command
         // TODO: osäker om rätt implementerad
+        /*
         print("PREV ACTION:");
         print(prevActions[0]);
         print(prevActions[1]);
@@ -235,6 +234,7 @@ public class BrovAgent : Agent
         print(currActions[3]);
         print(currActions[4]);
         print(currActions[5]);
+        */
         Vector<float> actionDiff = currActions - prevActions;
         //print("diff vec: " + actionDiff[0]);
         //print("diff vec: " + actionDiff[1]);
@@ -245,7 +245,7 @@ public class BrovAgent : Agent
         float actionDiffNorm = (float) actionDiff.L2Norm();
         float magnitude = Mathf.Pow(actionDiffNorm, 2);
         float r_cmd = lambda5*magnitude;
-        print("CMD REWARD: " + magnitude);
+        //print("CMD REWARD: " + magnitude);
 		
         // Sum tot reward
         float r_t = r_prog + r_perc + r_cmd;
@@ -258,6 +258,7 @@ public class BrovAgent : Agent
     
     private void OnTriggerEnter(Collider other)
     {
+        print("OnTriggerEnter");
         // Try to get the CheckpointData component from the collider.
         CheckpointSingle cpData = other.GetComponent<CheckpointSingle>();
         if (cpData != null)
@@ -275,7 +276,7 @@ public class BrovAgent : Agent
                 if (iNextGate == 0) { iNextGate = 1; } // Restart. TODO: modulus. GÖR SÅ DOM STARTAR PÅ 0! SLIPPER DENNA OCH PLUS 1 PÅ COUNT!
 				
                 next2Gates[0] = next2Gates[1];
-                next2Gates[1] = gatePositions[iNextGate];
+                next2Gates[1] = gatePositions[iNextGate]; // FIXME
             }else{
                 // TODO: fix so that it doesnt give this multiple times when passing through
                 // Wrong order!
@@ -285,6 +286,7 @@ public class BrovAgent : Agent
         }
         if (other.gameObject.tag == "Wall")
         {
+            print("AJ VÄGG");
             AddReward(-5f);
             EndEpisode();
         }

@@ -98,16 +98,21 @@ namespace DefaultNamespace
         
         void Start()
         {
+			Debug.Log("Agent:" + gameObject.name);
+			/*
             // Get all propeller articulation bodies
             prop_top_back_right = transform.Find("odom/base_link/prop_top_back_right_link").GetComponent<ArticulationBody>();
-            prop_top_front_right = transform.Find("odom/base_link/prop_top_front_right_link").GetComponent<ArticulationBody>();
+            Debug.Log("Efter först " + gameObject.name);
+			prop_top_front_right = transform.Find("odom/base_link/prop_top_front_right_link").GetComponent<ArticulationBody>();
             prop_top_back_left = transform.Find("odom/base_link/prop_top_back_left_link").GetComponent<ArticulationBody>();
             prop_top_front_left = transform.Find("odom/base_link/prop_top_front_left_link").GetComponent<ArticulationBody>();
             prop_bot_back_right = transform.Find("odom/base_link/prop_bot_back_right_link").GetComponent<ArticulationBody>();
             prop_bot_front_right = transform.Find("odom/base_link/prop_bot_front_right_link").GetComponent<ArticulationBody>();
             prop_bot_back_left = transform.Find("odom/base_link/prop_bot_back_left_link").GetComponent<ArticulationBody>();
             prop_bot_front_left = transform.Find("odom/base_link/prop_bot_front_left_link").GetComponent<ArticulationBody>();
-            // Get all propeller components
+            Debug.Log("3 efteer prop med litet p" + gameObject.name);
+			// Get all propeller components
+			
             PropTopBackRight = transform.Find("odom/base_link/prop_top_back_right_link/PropTopBackRight").GetComponent<Propeller>();
             PropTopFrontRight = transform.Find("odom/base_link/prop_top_front_right_link/PropTopFrontRight").GetComponent<Propeller>();
             PropTopBackLeft = transform.Find("odom/base_link/prop_top_back_left_link/PropTopBackLeft").GetComponent<Propeller>();
@@ -116,8 +121,37 @@ namespace DefaultNamespace
             PropBotFrontRight = transform.Find("odom/base_link/prop_bot_front_right_link/PropBotFrontRight").GetComponent<Propeller>();
             PropBotBackLeft = transform.Find("odom/base_link/prop_bot_back_left_link/PropBotBackLeft").GetComponent<Propeller>();
             PropBotFrontLeft = transform.Find("odom/base_link/prop_bot_front_left_link/PropBotFrontLeft").GetComponent<Propeller>();
+			*/
+			// Get all propeller components
+            PropTopBackRight = GameObject.Find("PropTopBackRight").GetComponent<Propeller>();
+            PropTopFrontRight = GameObject.Find("PropTopFrontRight").GetComponent<Propeller>();
+            PropTopBackLeft = GameObject.Find("PropTopBackLeft").GetComponent<Propeller>();
+            PropTopFrontLeft = GameObject.Find("PropTopFrontLeft").GetComponent<Propeller>();
+            PropBotBackRight = GameObject.Find("PropBotBackRight").GetComponent<Propeller>();
+            PropBotFrontRight = GameObject.Find("PropBotFrontRight").GetComponent<Propeller>();
+            PropBotBackLeft = GameObject.Find("PropBotBackLeft").GetComponent<Propeller>();
+            PropBotFrontLeft = GameObject.Find("PropBotFrontLeft").GetComponent<Propeller>();
             
-            
+            // Get all propeller articulation bodies
+            prop_top_back_right = GameObject.Find("prop_top_back_right_link").GetComponent<ArticulationBody>();
+            prop_top_front_right = GameObject.Find("prop_top_front_right_link").GetComponent<ArticulationBody>();
+            prop_top_back_left = GameObject.Find("prop_top_back_left_link").GetComponent<ArticulationBody>();
+            prop_top_front_left = GameObject.Find("prop_top_front_left_link").GetComponent<ArticulationBody>();
+            prop_bot_back_right = GameObject.Find("prop_bot_back_right_link").GetComponent<ArticulationBody>();
+            prop_bot_front_right = GameObject.Find("prop_bot_front_right_link").GetComponent<ArticulationBody>();
+            prop_bot_back_left = GameObject.Find("prop_bot_back_left_link").GetComponent<ArticulationBody>();
+            prop_bot_front_left = GameObject.Find("prop_bot_front_left_link").GetComponent<ArticulationBody>();
+
+			/*
+			PropTopBackRight = transform.Find("BROV2Actuators/PropTopBackRight").GetComponent<Propeller>();
+            PropTopFrontRight = transform.Find("BROV2Actuators/PropTopFrontRight").GetComponent<Propeller>();
+            PropTopBackLeft = transform.Find("BROV2Actuators/PropTopBackLeft").GetComponent<Propeller>();
+            PropTopFrontLeft = transform.Find("BROV2Actuators/PropTopFrontLeft").GetComponent<Propeller>();
+            PropBotBackRight = transform.Find("BROV2Actuators/PropBotBackRight").GetComponent<Propeller>();
+            PropBotFrontRight = transform.Find("BROV2Actuators/PropBotFrontRight").GetComponent<Propeller>();
+            PropBotBackLeft = transform.Find("BROV2Actuators/PropBotBackLeft").GetComponent<Propeller>();
+            PropBotFrontLeft = transform.Find("BROV2Actuators/PropBotFrontLeft").GetComponent<Propeller>();
+            */
             // Get camera and set camera offset TODO: this is not needed anymore with the new 3rd person camera? test
             myCamera = Camera.main;
             camera_offset = new Vector3(0f, 2f, -4f);
@@ -129,6 +163,9 @@ namespace DefaultNamespace
             I_z = mainBody.inertiaTensor.y; // y z switch. Unity to NED coordinates
             W = m * g; // weight
             B = rho*g*nabla; // The buoyancy in [N] given by OSBS
+
+
+		
         }
         // Public methods
         public Vector<float> GetVelocity()
@@ -163,9 +200,18 @@ namespace DefaultNamespace
             inputForce += force;
             inputTorque += torque;
         }
+		//public void SetInputNED(Vector3 foce, Vector3 torque)
+		//{
+		//}
+
+
 
         public void SetZeroVels()
         {
+	 if (mainBody == null)
+        {
+            Debug.LogError("ArticulationBody component is missing on " + mainBody.name);
+        } else{Debug.Log("VET " + mainBody.name);}
             mainBody.linearVelocity = Vector3.zero;
             mainBody.angularVelocity = Vector3.zero;
         }

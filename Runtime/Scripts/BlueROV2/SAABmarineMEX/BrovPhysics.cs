@@ -174,7 +174,7 @@ namespace DefaultNamespace
         }
         public Vector3 GetLocalPos()
         {
-            return transform.localPosition;
+            return mainBody.transform.localPosition;
         }
 		public Vector3 GetLocalPosNED()
         {
@@ -193,16 +193,31 @@ namespace DefaultNamespace
             return new Vector3(phi*Mathf.Rad2Deg, theta*Mathf.Rad2Deg, tau*Mathf.Rad2Deg);
         }
         // TODO: make a method that gives the full state combining the above
-        public Vector3 GetForwardUnitVec() { return transform.forward; }
+        public Vector3 GetForwardUnitVec() { return mainBody.transform.forward; }
+		public Vector3 GetForwardUnitVecNED() 
+		{ 
+    	   Vector3 unityForward = mainBody.transform.forward;
+ 		   return new Vector3(unityForward.z, unityForward.x, -unityForward.y); // TODO: use method instead 
+		}
 
         public void SetInput(Vector3 force, Vector3 torque)
         {
             inputForce += force;
             inputTorque += torque;
+			// Make the input to NED from being unity frame, RUF
+			var inputForceTemp = inputForce.To<NED>().ToDense();
+			inputForce = new Vector3((float) inputForceTemp[0], (float) inputForceTemp[1], (float) inputForceTemp[2]);
+			//inputTorque.To<NED>().ToDense()
+			var inputTorqueTemp = FRD.ConvertAngularVelocityFromRUF(inputTorque).ToDense(); // FRD is same as NED for ANGLES ONLY (Negative since inputs are right handed )
+			inputTorque = new Vector3((float) inputTorqueTemp[0], (float)inputTorqueTemp[1], (float) inputTorqueTemp[2]);
         }
-		//public void SetInputNED(Vector3 foce, Vector3 torque)
-		//{
-		//}
+		
+		public void SetInputNED(Vector3 force, Vector3 torque)
+		{
+			inputForce += force;
+			inputForce[2] = -inputForce[2]; // FIXME: works but looks ugly
+            inputTorque += torque;
+		}
 
 
 
@@ -517,10 +532,10 @@ namespace DefaultNamespace
             }
             
             // ADDED MASS
-            var input_forces = inputForce.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
-            var input_torques = FRD.ConvertAngularVelocityFromRUF(inputTorque).ToDense(); // FRD is same as NED for ANGLES ONLY (Negative since inputs are right handed )       
+            //var input_forces = inputForce.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
+            //var input_torques = FRD.ConvertAngularVelocityFromRUF(inputTorque).ToDense(); // FRD is same as NED for ANGLES ONLY (Negative since inputs are right handed )       
             var reactive_force_sum = (-g_vec - tau_sum_damping - tau_sum_coriolis);
-            Vector<double> input_forces_sum  = Vector<double>.Build.DenseOfArray(new double[] {input_forces[0], input_forces[1], input_forces[2], input_torques[0], input_torques[1], input_torques[2] });
+            Vector<double> input_forces_sum  = Vector<double>.Build.DenseOfArray(new double[] {inputForce[0], inputForce[1], inputForce[2], inputTorque[0], inputTorque[1], inputTorque[2] });
             var total_force_sum = reactive_force_sum + input_forces_sum;
             //print(input_forces[0]+","+input_forces[1]+","+input_forces[2]);
             
@@ -539,8 +554,11 @@ namespace DefaultNamespace
             var added_inertia = M_A * vel_vec_dot;
             var addedForce = added_inertia.SubVector(0, 3).ToVector3();
             var addedTorque = added_inertia.SubVector(3, 3).ToVector3();
+			// from ned to ruf
             addedForce = NED.ConvertToRUF(addedForce);
             addedTorque = FRD.ConvertAngularVelocityToRUF(addedTorque);
+			inputForce = NED.ConvertToRUF(inputForce);
+            inputTorque = FRD.ConvertAngularVelocityToRUF(inputTorque);
             
             // ADD forces to rigid body 
             mainBody.AddRelativeForce(-force_damping);

@@ -22,10 +22,11 @@ public class BrovRLNode : MonoBehaviour
     public string topicOutput = "/controller_output"; // will subscribe for actuation
     public string topicControlMode = "/controller_mode"; // will publish control mode
     private BrovPhysics brovPhysics;
+    private BrovAgent brovAgent;
     public bool controlMode = true;
     
     public void OnTickChange(bool tick) // TODO: attribute no longer needed and change method name to more suitable for controlmodechange
-    {
+    { // NOTE: not longer used since button was removed
         controlMode = !controlMode;
         BoolMsg controlModeChange = new BoolMsg
         {
@@ -36,12 +37,25 @@ public class BrovRLNode : MonoBehaviour
     void Start()
     {
         brovPhysics = GetComponent<BrovPhysics>(); // get brov physics component
+        brovAgent = GetComponentInChildren<BrovAgent>();
         // ros stuff
         ros = ROSConnection.GetOrCreateInstance();
         ros.RegisterPublisher<Float64MultiArrayMsg>(topicInput); 
         ros.RegisterPublisher<BoolMsg>(topicControlMode);
         ros.Subscribe<Float64MultiArrayMsg>(topicOutput, RecieveOutput);
         InvokeRepeating("PublishState", 0.02f, 0.02f);
+        InvokeRepeating("PublishMode", 0.02f, 0.02f);
+    }
+
+    void PublishMode()
+    {
+        //controlMode = !controlMode;
+        // TODO: make it so it not constantly send. add a prev variable
+        BoolMsg controlModeChange = new BoolMsg
+        {
+            data = controlMode,
+        };
+        ros.Publish(topicControlMode, controlModeChange);
     }
     void RecieveOutput(Float64MultiArrayMsg msg)
     {
@@ -54,13 +68,15 @@ public class BrovRLNode : MonoBehaviour
 
     void PublishState()
     {
-        //brovPhysics.GetState() // TODO: add a method to BrovPhysics so one can directly get the state
-        Vector<float> vel_vec = brovPhysics.GetVelocity();
-        double[] test_vels = new double[16];
-        System.Array.Fill(test_vels, 1.0);
+        // Get input for rl-model
+
+        List<float> input = brovAgent.GetModelInput();
+        print(input);
+        float[] inputArray = input.ToArray();
+        double[] doubleArray = Array.ConvertAll(inputArray, x => (double)x);
         Float64MultiArrayMsg stateArray = new Float64MultiArrayMsg
         {
-            data = test_vels,
+            data = doubleArray, // TODO: why must this be double when it says float array
         };
         ros.Publish(topicInput, stateArray);
     }

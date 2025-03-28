@@ -49,6 +49,8 @@ public class BrovAgentReal : Agent
     {
         /*
          Input: actions, output from the model or heuristic action
+         6x1 NED frame, [-1, 1]
+         
          Output: forces and torques that will act on the brov trough BrovPhysics
          
          For residual testing in python, isHeuristic will be false
@@ -59,17 +61,16 @@ public class BrovAgentReal : Agent
             print("SCALE!!");
             int numActions = actionsSeg.Length;
             Vector2[] ranges = new Vector2[numActions];
-            // x,y,z noted with irl coord sys
-            // Here they are just Unity frame but in brovPhysics it is made to NED
+            // x,y,z noted with NED coord sys
             // TODO: make these into variables since they are used in the heuristic as well
             // min max ranges for each dof
             // TODO: need to double chech that these were the max and min forces for each dof from brov datasheet or where every it was found
-            ranges[0] = new Vector2(-85f, 85f); // y
-            ranges[1] = new Vector2(-122f, 122f); // z
-            ranges[2] = new Vector2(-85, 85); // x
-            ranges[3] = new Vector2(-14f, 14f); // pitch
-            ranges[4] = new Vector2(-14f, 14f); // yaw
-            ranges[5] = new Vector2(-14f, 14f); // roll
+            ranges[0] = new Vector2(-85, 85); // x
+            ranges[1] = new Vector2(-85f, 85f); // y
+            ranges[2] = new Vector2(-122f, 122f); // z
+            ranges[3] = new Vector2(-14f, 14f); // roll
+            ranges[4] = new Vector2(-14f, 14f); // pitch
+            ranges[5] = new Vector2(-14f, 14f); // yaw
 
             // Scale each continuous action using its specific range.
             for (int i = 0; i < numActions; i++)
@@ -80,7 +81,7 @@ public class BrovAgentReal : Agent
         inputForce  = new Vector3(actionsSeg[0], actionsSeg[1], actionsSeg[2]);
         inputTorque = new Vector3(actionsSeg[3], actionsSeg[4], actionsSeg[5]);
         
-        brovPhysics.SetInput(inputForce*1.5f, inputTorque*1.5f); // Residual dynamic
+        brovPhysics.SetInputNED(inputForce*1.5f, inputTorque*1.5f); // Residual dynamic
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -90,43 +91,43 @@ public class BrovAgentReal : Agent
         // Teleop
         if (Input.GetKey(KeyCode.W))
         {
-            inputForce[2] += 85;
+            inputForce[0] += 85;
         }
         if (Input.GetKey(KeyCode.A))
         {
-            inputForce[0] -= 85;
+            inputForce[1] -= 85;
         }
         if (Input.GetKey(KeyCode.S))
         {
-            inputForce[2] -= 85;
+            inputForce[0] -= 85;
         }
         if (Input.GetKey(KeyCode.D))
         {
-            inputForce[0] += 85;
+            inputForce[1] += 85;
         }
         if (Input.GetKey(KeyCode.Space))
         {
-            inputForce[1] += 122;
+            inputForce[2] += 122;
         }
         if (Input.GetKey(KeyCode.LeftShift))
         {
-            inputForce[1] -= 122;
+            inputForce[2] -= 122;
         }
         if (Input.GetKey(KeyCode.Q))
         {
-            inputTorque[1] -= 14;
+            inputTorque[2] -= 14;
         }
         if (Input.GetKey(KeyCode.E))
         {
-            inputTorque[1] += 14;
+            inputTorque[2] += 14;
         }
         if (Input.GetKey(KeyCode.X))
         {
-            inputTorque[0] += 14;
+            inputTorque[1] += 14;
         }
         if (Input.GetKey(KeyCode.C))
         {
-            inputTorque[2] += 14;
+            inputTorque[0] += 14;
         }
         
         // Forces

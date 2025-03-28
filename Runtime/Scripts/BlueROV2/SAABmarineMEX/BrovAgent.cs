@@ -14,6 +14,7 @@ using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using DefaultNamespace;
+
 public class BrovAgent : Agent
 {
     // For interacting with the Brov
@@ -21,14 +22,16 @@ public class BrovAgent : Agent
     Vector3 inputForce = Vector3.zero;
     Vector3 inputTorque = Vector3.zero;
     
-    // DRL STUFF
-    private bool isHeuristic = false; // if using heuristic the forces does not need to be scaled while the rl output needs scaling 
+    // RL stuff
+	// if using heuristic the forces does not need to be scaled while the rl output needs scaling
+    private bool isHeuristic = false;  
     // For gate
     private List<Vector3> gatePositions = new List<Vector3>();
     private List<Vector3> next2Gates = new List<Vector3>() { Vector3.zero, Vector3.zero };
-    private int iNextGate = 1;
+    private int iNextGate = 0;
     // For continous rewards
     private Vector3 prevPos;
+	private Vector3 currPos;
     Vector<float> prevActions = Vector<float>.Build.Dense(6, 0f);
     Vector<float> currActions = Vector<float>.Build.Dense(6, 0f);
     // DRL training parameters
@@ -39,11 +42,10 @@ public class BrovAgent : Agent
     public override void Initialize()
     {
         print("Init");
-        //brovPhysics = GetComponent<BrovPhysics>();
         brovPhysics = GetComponentInParent<BrovPhysics>();
-        prevPos = brovPhysics.GetLocalPos();
+        prevPos = brovPhysics.GetLocalPosNED();
+        currPos = prevPos;
         // Get gate positions
-        
          GameObject gates = GameObject.Find("Gates");
            if (gates != null)
            {
@@ -52,9 +54,10 @@ public class BrovAgent : Agent
                {
                    //Debug.Log("Found child: " + child.gameObject.name);
                    //Debug.Log("Child's position: " + child.localPosition);
-                   gatePositions.Add(child.localPosition);
-                   // You can also access the child object:
-                   GameObject childObject = child.gameObject;
+				
+				   var gatePosTemp = child.localPosition.To<NED>().ToDense();
+                   Vector3 gatePos = new Vector3((float)gatePosTemp[0], (float)gatePosTemp[1], (float)gatePosTemp[2]);
+					gatePositions.Add(gatePos);
                }
                //Debug.Log("tot n:" + gatePositions.Count);
            }
@@ -68,20 +71,16 @@ public class BrovAgent : Agent
     {
         // Agent's starting state for the track
         // TODO: later, make the starting positions more random
-        Vector3 localPosition = new Vector3(2.9f, 0.5f, 0f);
-        Quaternion localRotation = Quaternion.Euler(0, -90, 0);
-        print("EPISODE Begin");
-        if (brovPhysics == null)
-        {
-            Debug.LogError("DÅLIGT" + gameObject.name);
-        } else{Debug.Log("VET " + gameObject.name); }
+        Vector3 localPosition = new Vector3(3.5f, 0.5f, 0.4f);
+        Quaternion localRotation = Quaternion.Euler(0, 0, 0);
         brovPhysics.SetZeroVels();
+		//brovPhysics.SetInputNED(new Vector3(0,0,0), new Vector3(0,0,0));
         brovPhysics.SetPosAndRot(localPosition, localRotation);
 		
         // Reset next gate positions
         next2Gates[0] = gatePositions[0];
         next2Gates[1] = gatePositions[1];
-        iNextGate = 1;
+        iNextGate = 0;
     }
     
     public override void CollectObservations(VectorSensor sensor)
@@ -89,17 +88,31 @@ public class BrovAgent : Agent
         // Sensor/perception input for the agent /
         // State
         //sensor.AddObservation(brovPhysics.GetLocalPos());
-        sensor.AddObservation(brovPhysics.GetLocalRot()); // Orientation quaternion
+        sensor.AddObservation(brovPhysics.GetLocalRotEulerNED());
         sensor.AddObservation(brovPhysics.GetVelocity());
 		
         // Relative position to next gate
-        Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetLocalPos();
+        Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetLocalPosNED();
         sensor.AddObservation(relVec2Gate1); // Relative vector to next gate
         //Vector3 relVec2Gate2 = next2Gates[1] - brovPhysics.GetLocalPos();
         //sensor.AddObservation(relVec2Gate2); // Relative vector to second next gate
 		
         // Previous action
         sensor.AddObservation(prevActions); // TODO: maybe change this to be ActionSegment data type?
+    }
+    public List<float> GetModelInput()
+    {
+        List<float> input = new List<float>();
+        Vector3 temp = brovPhysics.GetLocalRotEulerNED();
+        float[] floatArray1 = new float[] { temp.x, temp.y, temp.z };
+        input.AddRange(floatArray1);
+        input.AddRange(brovPhysics.GetVelocity());		
+        // Relative position to next gate
+        Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetLocalPosNED();
+        float[] floatArray2 = new float[] { relVec2Gate1.x, relVec2Gate1.y, relVec2Gate1.z };
+        input.AddRange(floatArray2);
+        input.AddRange(prevActions);
+        return input;
     }
     
     // What actions the agent can preform
@@ -116,12 +129,12 @@ public class BrovAgent : Agent
             Vector2[] ranges = new Vector2[numActions];
             // min max ranges for each dof
             // TODO: make these into variables since they are used in the heuristic as well
-            ranges[0] = new Vector2(-85f, 85f); // y
-            ranges[1] = new Vector2(-122f, 122f); // z
-            ranges[2] = new Vector2(-85, 85); // x
-            ranges[3] = new Vector2(-14f, 14f); // pitch
-            ranges[4] = new Vector2(-14f, 14f); // yaw
-            ranges[5] = new Vector2(-14f, 14f); // roll
+            ranges[0] = new Vector2(-85, 85); // x
+            ranges[1] = new Vector2(-85f, 85f); // y
+            ranges[2] = new Vector2(-122f, 122f); // z
+            ranges[3] = new Vector2(-14f, 14f); // roll
+            ranges[4] = new Vector2(-14f, 14f); // pitch
+            ranges[5] = new Vector2(-14f, 14f); // yaw
 
             // Scale each continuous action using its specific range.
             for (int i = 0; i < numActions; i++)
@@ -133,8 +146,7 @@ public class BrovAgent : Agent
 		
         inputForce  = new Vector3(actionsSeg[0], actionsSeg[1], actionsSeg[2]);
         inputTorque = new Vector3(actionsSeg[3], actionsSeg[4], actionsSeg[5]);
-
-        brovPhysics.SetInput(inputForce, inputTorque);
+        brovPhysics.SetInputNED(inputForce, inputTorque);
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -143,52 +155,43 @@ public class BrovAgent : Agent
         // Teleop
         if (Input.GetKey(KeyCode.W))
         {
-            inputForce[2] += 85;
+            inputForce[0] += 85;
         }
-
         if (Input.GetKey(KeyCode.A))
+        {
+            inputForce[1] -= 85;
+        }
+        if (Input.GetKey(KeyCode.S))
         {
             inputForce[0] -= 85;
         }
-
-        if (Input.GetKey(KeyCode.S))
-        {
-            inputForce[2] -= 85;
-        }
-
         if (Input.GetKey(KeyCode.D))
         {
-            inputForce[0] += 85;
+            inputForce[1] += 85;
         }
-
         if (Input.GetKey(KeyCode.Space))
         {
-            inputForce[1] += 122;
+            inputForce[2] += 122;
         }
-
         if (Input.GetKey(KeyCode.LeftShift))
         {
-            inputForce[1] -= 122;
+            inputForce[2] -= 122;
         }
-
         if (Input.GetKey(KeyCode.Q))
         {
-            inputTorque[1] -= 14;
+            inputTorque[2] -= 14;
         }
-
         if (Input.GetKey(KeyCode.E))
+        {
+            inputTorque[2] += 14;
+        }
+        if (Input.GetKey(KeyCode.X))
         {
             inputTorque[1] += 14;
         }
-
-        if (Input.GetKey(KeyCode.X))
-        {
-            inputTorque[0] += 14;
-        }
-
         if (Input.GetKey(KeyCode.C))
         {
-            inputTorque[2] += 14;
+            inputTorque[0] += 14;
         }
         // Forces
         continuousActions[0] = inputForce[0];
@@ -203,16 +206,20 @@ public class BrovAgent : Agent
     {
         // r_progression
         float d_prev = Vector3.Distance(next2Gates[0], prevPos);
-        Vector3 currPos = brovPhysics.GetLocalPos();
+		//print("d_prev " + d_prev);
+        currPos = brovPhysics.GetLocalPosNED();
         float d_curr = Vector3.Distance(next2Gates[0], currPos);
-        float r_prog = lambda1 * (d_prev - d_curr);
+        float r_prog = 4*lambda1 * (d_prev - d_curr);
         //print("PROG REWARD: " + r_prog);
         
         // r_perception
-        Vector3 directionToGate = (next2Gates[0] - currPos).normalized;
-        // TODO: this angle is only yaw??
-        float angleToGate = Mathf.Acos(Vector3.Dot(brovPhysics.GetForwardUnitVec(), directionToGate)) * Mathf.Rad2Deg; // TODO: why minsta runt 30??
-        float part = lambda3 * Mathf.Pow(angleToGate, 2); // NOTE: pow of 2 instead of 4 as in the report
+        Vector3 directionToGate = (NED.ConvertToRUF(currPos) - NED.ConvertToRUF(next2Gates[0])).normalized;
+		//print(directionToGate);
+		//print("ANGLE: " + Vector3.Angle(brovPhysics.GetForwardUnitVec(), NED.ConvertToRUF(directionToGate)));
+        //float angleToGate = Mathf.Acos(Vector3.Dot(brovPhysics.GetForwardUnitVec(), directionToGate)) * Mathf.Rad2Deg; // TODO: why minsta runt 30??
+        float angleToGate = Vector3.Angle(brovPhysics.GetForwardUnitVec(), NED.ConvertToRUF(directionToGate));
+		//print("angle to gate " + angleToGate);
+		float part = lambda3 * Mathf.Pow(angleToGate, 2); // NOTE: pow of 2 instead of 4 as in the report
         float r_perc = lambda2 * Mathf.Exp(part);
         //print("PERC REWARD: " + r_perc);
 	
@@ -234,22 +241,24 @@ public class BrovAgent : Agent
         print(currActions[3]);
         print(currActions[4]);
         print(currActions[5]);
-        */
+		*/
         Vector<float> actionDiff = currActions - prevActions;
-        //print("diff vec: " + actionDiff[0]);
-        //print("diff vec: " + actionDiff[1]);
-        //print("diff vec: " + actionDiff[2]);
-        //print("diff vec: " + actionDiff[3]);
-        //print("diff vec: " + actionDiff[4]);
-        //print("diff vec: " + actionDiff[5]);
+/*
+        print("diff vec: " + actionDiff[0]);
+        print("diff vec: " + actionDiff[1]);
+        print("diff vec: " + actionDiff[2]);
+        print("diff vec: " + actionDiff[3]);
+        print("diff vec: " + actionDiff[4]);
+        print("diff vec: " + actionDiff[5]);
+*/
         float actionDiffNorm = (float) actionDiff.L2Norm();
         float magnitude = Mathf.Pow(actionDiffNorm, 2);
         float r_cmd = lambda5*magnitude;
         //print("CMD REWARD: " + magnitude);
 		
         // Sum tot reward
-        float r_t = r_prog + r_perc + r_cmd;
-        AddReward(r_t);
+        float r_t = r_prog + r_perc + r_cmd;        
+		AddReward(r_t);
         //print("TOT REWARD: " + r_t);
         
         prevPos = currPos;
@@ -263,20 +272,18 @@ public class BrovAgent : Agent
         CheckpointSingle cpData = other.GetComponent<CheckpointSingle>();
         if (cpData != null)
         {
-            Debug.Log("CHECKPOINT INDEX: " + cpData.checkpointIndex);
-            Debug.Log("CORRECT INDEX: " + iNextGate);
+            //Debug.Log("CHECKPOINT INDEX: " + cpData.checkpointIndex);
+            //Debug.Log("CORRECT INDEX: " + iNextGate);
             // Optionally, verify the checkpoint order.
             if (cpData.checkpointIndex == iNextGate)
             {
                 Debug.Log("RÄTT ORDNING");
                 //AddReward(10f);
-                // Move to the next gate TODO: test if this logic works
+                // Move to the next gate
                 // TODO: make sure they are in order
-                iNextGate = (iNextGate + 1) % (gatePositions.Count+1); // TODO: remake so gate numbers starts from 0 instead of 1. then gatePos.count+1 not needed, only gatePos.count
-                if (iNextGate == 0) { iNextGate = 1; } // Restart. TODO: modulus. GÖR SÅ DOM STARTAR PÅ 0! SLIPPER DENNA OCH PLUS 1 PÅ COUNT!
-				
+                iNextGate = (iNextGate + 1) % gatePositions.Count; 				
                 next2Gates[0] = next2Gates[1];
-                next2Gates[1] = gatePositions[iNextGate]; // FIXME
+                next2Gates[1] = gatePositions[iNextGate]; 
             }else{
                 // TODO: fix so that it doesnt give this multiple times when passing through
                 // Wrong order!

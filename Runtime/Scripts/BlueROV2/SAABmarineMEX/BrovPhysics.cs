@@ -30,7 +30,6 @@ namespace DefaultNamespace
         public Propeller PropBotBackLeft;
         public Propeller PropBotFrontLeft;
         
-        
         //Variables
         private Camera myCamera;
         private Vector3 camera_offset;
@@ -86,16 +85,12 @@ namespace DefaultNamespace
 
         // Maybe not the best to have these globally but the purpose is to easily get the velocities to Agent class
         // Positions
-		float x; float y; float z;
-		float phi; float theta; float tau;
-		// Velocities
-		float u;
-        float v;
-        float w;
-        float p;
-        float q;
-        float r;
-        
+        float x, y, z;
+        float phi, theta, tau;
+        // Velocities
+        float u, v, w;
+        float p, q, r;
+
         void Start()
         {
 			Debug.Log("Agent:" + gameObject.name);
@@ -176,7 +171,7 @@ namespace DefaultNamespace
         {
             return mainBody.transform.localPosition;
         }
-		public Vector3 GetLocalPosNED()
+        public Vector3 GetLocalPosNED()
         {
             return new Vector3(x, y, z);
         }
@@ -184,13 +179,13 @@ namespace DefaultNamespace
         {
             return transform.localRotation;
         }
-		public Vector3 GetLocalRotEuler()
+        public Vector3 GetLocalRotEuler()
         {
             return transform.localRotation.eulerAngles;
         }
-		public Vector3 GetLocalRotEulerNED()
+        public Vector<float> GetLocalRotEulerNED()
         {
-            return new Vector3(phi*Mathf.Rad2Deg, theta*Mathf.Rad2Deg, tau*Mathf.Rad2Deg);
+            return new Vector<float>.Build.DenseOfArray(new float[] {phi*Mathf.Rad2Deg, theta*Mathf.Rad2Deg, tau*Mathf.Rad2Deg}); // TODO: can this be done in simpler way?
         }
         // TODO: make a method that gives the full state combining the above
         public Vector3 GetForwardUnitVec() { return mainBody.transform.forward; }

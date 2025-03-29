@@ -21,100 +21,108 @@ public class BrovAgent : Agent
     private BrovPhysics brovPhysics;
     Vector3 inputForce = Vector3.zero;
     Vector3 inputTorque = Vector3.zero;
-    
+
     // RL stuff
-	// if using heuristic the forces does not need to be scaled while the rl output needs scaling
-    private bool isHeuristic = false;  
+    // If using heuristic the forces does not need to be scaled while the rl output needs scaling
+    private bool isHeuristic = false;
     // For gate
     private List<Vector3> gatePositions = new List<Vector3>();
     private List<Vector3> next2Gates = new List<Vector3>() { Vector3.zero, Vector3.zero };
     private int iNextGate = 0;
     // For continous rewards
     private Vector3 prevPos;
-	private Vector3 currPos;
+    private Vector3 currPos;
     Vector<float> prevActions = Vector<float>.Build.Dense(6, 0f);
     Vector<float> currActions = Vector<float>.Build.Dense(6, 0f);
-    // DRL training parameters
+    // RL training parameters
     private float gamma = 0.99f;
     private float epsilon = 0.2f;
     private float lambda1 = 1f, lambda2 = 0.02f, lambda3 = -10f, lambda4 = -2e-4f, lambda5 = -1e-4f; // NOTE: lambda3=-10 in report
 
     public override void Initialize()
     {
-        print("Init");
+        Debug.Log("Init agent: " + gameObject.name);
         brovPhysics = GetComponentInParent<BrovPhysics>();
         prevPos = brovPhysics.GetLocalPosNED();
         currPos = prevPos;
+
         // Get gate positions
-         GameObject gates = GameObject.Find("Gates");
-           if (gates != null)
-           {
-               // Iterate over direct children of Gates. They are already sorted from Unity scene, i.e first child is first gate, second is second etc.
-               foreach (Transform child in gates.transform)
-               {
-                   //Debug.Log("Found child: " + child.gameObject.name);
-                   //Debug.Log("Child's position: " + child.localPosition);
-				
-				   var gatePosTemp = child.localPosition.To<NED>().ToDense();
-                   Vector3 gatePos = new Vector3((float)gatePosTemp[0], (float)gatePosTemp[1], (float)gatePosTemp[2]);
-					gatePositions.Add(gatePos);
+        GameObject gates = GameObject.Find("Gates");
+        if (gates != null)
+        {
+            // Assumption: Gates are sorted in the desired track order in the Unity scene, i.e. first child is first gate etc.
+            foreach (Transform child in gates.transform)
+            {
+                var gatePosTemp = child.localPosition.To<NED>().ToDense(); // Convert to NED frame instead of Unity standard RUF frame
+                Vector3 gatePos = new Vector3((float)gatePosTemp[0], (float)gatePosTemp[1], (float)gatePosTemp[2]);
+                gatePositions.Add(gatePos);
                }
-               //Debug.Log("tot n:" + gatePositions.Count);
-           }
-           else
-           {
-              Debug.LogError("Gates object not found!");
-           }
+        }
+        else
+        {
+            Debug.LogError("Gates object not found!");
+        }
     }
 
     public override void OnEpisodeBegin()
     {
-        // Agent's starting state for the track
-        // TODO: later, make the starting positions more random
-        Vector3 localPosition = new Vector3(3.5f, 0.5f, 0.4f);
-        Quaternion localRotation = Quaternion.Euler(0, 0, 0);
+        // Reset the Brov to its starting position TODO: later, make the starting position more random
+        Vector3 localStartPos = new Vector3(3.5f, 0.5f, 0.4f); // TODO: make it relative to the same origin as it will be irl
+        Quaternion localStartRot = Quaternion.Euler(0, 0, 0);
         brovPhysics.SetZeroVels();
-		//brovPhysics.SetInputNED(new Vector3(0,0,0), new Vector3(0,0,0));
-        brovPhysics.SetPosAndRot(localPosition, localRotation);
-		
-        // Reset next gate positions
+        brovPhysics.SetPosAndRot(localStartPos, localStartRot);
+
+        // Reset next gate positions to the first two gates
         next2Gates[0] = gatePositions[0];
         next2Gates[1] = gatePositions[1];
         iNextGate = 0;
     }
-    
+
     public override void CollectObservations(VectorSensor sensor)
     {
-        // Sensor/perception input for the agent /
-        // State
+        /*
+         * This method adds observations to the sensor of the agent. 
+         * The observations are used as input to the neural network.
+         */
+
+        // 1. State
         //sensor.AddObservation(brovPhysics.GetLocalPos());
         sensor.AddObservation(brovPhysics.GetLocalRotEulerNED());
         sensor.AddObservation(brovPhysics.GetVelocity());
-		
-        // Relative position to next gate
+
+        // 2. Relative position to next gate NOTE: Now it only uses the first gate as that is how it is done in the drone racing paper
         Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetLocalPosNED();
-        sensor.AddObservation(relVec2Gate1); // Relative vector to next gate
+        sensor.AddObservation(relVec2Gate1);
         //Vector3 relVec2Gate2 = next2Gates[1] - brovPhysics.GetLocalPos();
         //sensor.AddObservation(relVec2Gate2); // Relative vector to second next gate
-		
-        // Previous action
-        sensor.AddObservation(prevActions); // TODO: maybe change this to be ActionSegment data type?
+
+        // 3. Previous action
+        sensor.AddObservation(prevActions); // TODO: maybe change this to be ActionSegment data type? Does it matter?
     }
+
     public List<float> GetModelInput()
     {
-        List<float> input = new List<float>();
-        Vector3 temp = brovPhysics.GetLocalRotEulerNED();
-        float[] floatArray1 = new float[] { temp.x, temp.y, temp.z };
-        input.AddRange(floatArray1);
-        input.AddRange(brovPhysics.GetVelocity());		
-        // Relative position to next gate
+        /*
+         * This method returns the input to the neural network model.
+         * Simply returning the observations from the CollectObservations method.
+         */
+        List<float> modelInput = new List<float>();
+
+        // 1. State
+        modelInput.AddRange(brovPhysics.GetLocalRotEulerNED());
+        modelInput.AddRange(brovPhysics.GetVelocity());
+
+        // 2. Relative position to next gate
+        // TODO: make next2gates into float array so this code can be simplified
         Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetLocalPosNED();
         float[] floatArray2 = new float[] { relVec2Gate1.x, relVec2Gate1.y, relVec2Gate1.z };
-        input.AddRange(floatArray2);
-        input.AddRange(prevActions);
-        return input;
+        modelInput.AddRange(floatArray2);
+
+        // 3. Previous action
+        modelInput.AddRange(prevActions);
+        return modelInput;
     }
-    
+
     // What actions the agent can preform
     public override void OnActionReceived(ActionBuffers actions)
     {

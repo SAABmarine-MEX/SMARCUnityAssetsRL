@@ -78,14 +78,32 @@ namespace DefaultNamespace
         double I_x = 0.2818; // [kg*m^2], from OSBS's CAD
         double I_y = 0.245; // [kg*m^2], from OSBS's CAD
         double I_z = 0.3852; // [kg*m^2], from OSBS's CAD
-
         
+        // Min and max force and torques acting on center of mass. TODO: double check with data sheet
+        int nInput = 6;
+        Vector2[] minMaxes = new Vector2[nInput];
+        // min max ranges for each dof
+        minMaxes[0] = new Vector2(-85, 85); // x
+        minMaxes[1] = new Vector2(-85f, 85f); // y
+        minMaxes[2] = new Vector2(-122f, 122f); // z
+        minMaxes[3] = new Vector2(-14f, 14f); // roll
+        minMaxes[4] = new Vector2(-14f, 14f); // pitch
+        minMaxes[5] = new Vector2(-14f, 14f); // yaw
+
+        float xMinForce = -85f; float xMaxForce = 85f;
+        float yMinForce = -85f; float yMaxForce = 85f;
+        float zMinForce = -122f; float zMaxForce = 122f;
+        float rollMinTorque = -14f; float rollMaxTorque = 14f;
+        float pitchMinTorque = -14f; float pitchMaxTorque = 14f;
+        float yawMinTorque = -14f; float yawMaxTorque = 14f;
+
+        // These will act on the articulated body of the Brov
         Vector3 inputForce = Vector3.zero;
         Vector3 inputTorque = Vector3.zero;
 
         // Maybe not the best to have these globally but the purpose is to easily get the velocities to Agent class
         // Positions
-        float x, y, z;
+        float x,   y,     z;
         float phi, theta, tau;
         // Velocities
         float u, v, w;
@@ -93,8 +111,8 @@ namespace DefaultNamespace
 
         void Start()
         {
-			Debug.Log("Agent:" + gameObject.name);
-			/*
+            Debug.Log("Agent:" + gameObject.name);
+            /*
             // Get all propeller articulation bodies
             prop_top_back_right = transform.Find("odom/base_link/prop_top_back_right_link").GetComponent<ArticulationBody>();
             Debug.Log("Efter först " + gameObject.name);
@@ -116,8 +134,8 @@ namespace DefaultNamespace
             PropBotFrontRight = transform.Find("odom/base_link/prop_bot_front_right_link/PropBotFrontRight").GetComponent<Propeller>();
             PropBotBackLeft = transform.Find("odom/base_link/prop_bot_back_left_link/PropBotBackLeft").GetComponent<Propeller>();
             PropBotFrontLeft = transform.Find("odom/base_link/prop_bot_front_left_link/PropBotFrontLeft").GetComponent<Propeller>();
-			*/
-			// Get all propeller components
+            */
+            // Get all propeller components
             PropTopBackRight = GameObject.Find("PropTopBackRight").GetComponent<Propeller>();
             PropTopFrontRight = GameObject.Find("PropTopFrontRight").GetComponent<Propeller>();
             PropTopBackLeft = GameObject.Find("PropTopBackLeft").GetComponent<Propeller>();
@@ -137,16 +155,6 @@ namespace DefaultNamespace
             prop_bot_back_left = GameObject.Find("prop_bot_back_left_link").GetComponent<ArticulationBody>();
             prop_bot_front_left = GameObject.Find("prop_bot_front_left_link").GetComponent<ArticulationBody>();
 
-			/*
-			PropTopBackRight = transform.Find("BROV2Actuators/PropTopBackRight").GetComponent<Propeller>();
-            PropTopFrontRight = transform.Find("BROV2Actuators/PropTopFrontRight").GetComponent<Propeller>();
-            PropTopBackLeft = transform.Find("BROV2Actuators/PropTopBackLeft").GetComponent<Propeller>();
-            PropTopFrontLeft = transform.Find("BROV2Actuators/PropTopFrontLeft").GetComponent<Propeller>();
-            PropBotBackRight = transform.Find("BROV2Actuators/PropBotBackRight").GetComponent<Propeller>();
-            PropBotFrontRight = transform.Find("BROV2Actuators/PropBotFrontRight").GetComponent<Propeller>();
-            PropBotBackLeft = transform.Find("BROV2Actuators/PropBotBackLeft").GetComponent<Propeller>();
-            PropBotFrontLeft = transform.Find("BROV2Actuators/PropBotFrontLeft").GetComponent<Propeller>();
-            */
             // Get camera and set camera offset TODO: this is not needed anymore with the new 3rd person camera? test
             myCamera = Camera.main;
             camera_offset = new Vector3(0f, 2f, -4f);
@@ -158,11 +166,19 @@ namespace DefaultNamespace
             I_z = mainBody.inertiaTensor.y; // y z switch. Unity to NED coordinates
             W = m * g; // weight
             B = rho*g*nabla; // The buoyancy in [N] given by OSBS
-
-
-		
         }
+
         // Public methods
+        public float[] ScaleActions(float[] actionsNorm)
+        {
+            float[] actionsScaled = new float[nInput];
+            for (int i = 0; i < nInput; i++)
+            {
+                actionsScaled[i] = ((actionScaled[i] + 1f) / 2f) * (minMaxes[i].y - minMaxes[i].x) + minMaxes[i].x;
+            }
+            return actionsScaled;
+        }
+
         public Vector<float> GetVelocity()
         {
             return Vector<float>.Build.DenseOfArray(new float[] { u, v, w, p, q, r });
@@ -171,9 +187,10 @@ namespace DefaultNamespace
         {
             return mainBody.transform.localPosition;
         }
-        public Vector3 GetLocalPosNED()
+        public Vector<float> GetLocalPosNED()
         {
-            return new Vector3(x, y, z);
+            return Vector<float>.Build.DenseOfArray(new float[] { x, y, z });
+            //return new Vector<float>(x, y, z);
         }
         public Quaternion GetLocalRot()
         {
@@ -187,90 +204,83 @@ namespace DefaultNamespace
         {
             return new Vector<float>.Build.DenseOfArray(new float[] {phi*Mathf.Rad2Deg, theta*Mathf.Rad2Deg, tau*Mathf.Rad2Deg}); // TODO: can this be done in simpler way?
         }
-        // TODO: make a method that gives the full state combining the above
         public Vector3 GetForwardUnitVec() { return mainBody.transform.forward; }
-		public Vector3 GetForwardUnitVecNED() 
-		{ 
-    	   Vector3 unityForward = mainBody.transform.forward;
- 		   return new Vector3(unityForward.z, unityForward.x, -unityForward.y); // TODO: use method instead 
-		}
-
+        public Vector3 GetForwardUnitVecNED() 
+        { 
+            Vector3 unityForward = mainBody.transform.forward;
+            return new Vector3(unityForward.z, unityForward.x, -unityForward.y); // TODO: use method instead 
+        }
         public void SetInput(Vector3 force, Vector3 torque)
         {
+            // Input: RUF force and torque vector
+            // Process: Makes these NED and add to inputForce and inputTorque
+            var inputForceTemp = force.To<NED>().ToDense();
+            force = new Vector3((float) inputForceTemp[0], (float) inputForceTemp[1], (float) inputForceTemp[2]);
+            //inputTorque.To<NED>().ToDense()
+            var inputTorqueTemp = FRD.ConvertAngularVelocityFromRUF(torque).ToDense(); // FRD is same as NED for ANGLES ONLY (Negative since inputs are right handed )
+            torque = new Vector3((float) inputTorqueTemp[0], (float)inputTorqueTemp[1], (float) inputTorqueTemp[2]);
             inputForce += force;
+            inputForce[2] = -inputForce[2]; // FIXME: works but looks ugly
             inputTorque += torque;
-			// Make the input to NED from being unity frame, RUF
-			var inputForceTemp = inputForce.To<NED>().ToDense();
-			inputForce = new Vector3((float) inputForceTemp[0], (float) inputForceTemp[1], (float) inputForceTemp[2]);
-			//inputTorque.To<NED>().ToDense()
-			var inputTorqueTemp = FRD.ConvertAngularVelocityFromRUF(inputTorque).ToDense(); // FRD is same as NED for ANGLES ONLY (Negative since inputs are right handed )
-			inputTorque = new Vector3((float) inputTorqueTemp[0], (float)inputTorqueTemp[1], (float) inputTorqueTemp[2]);
         }
-		
-		public void SetInputNED(Vector3 force, Vector3 torque)
-		{
-			inputForce += force;
-			inputForce[2] = -inputForce[2]; // FIXME: works but looks ugly
+        public void SetInputNED(Vector3 force, Vector3 torque)
+        {
+            inputForce += force;
+            inputForce[2] = -inputForce[2]; // FIXME: works but looks ugly
             inputTorque += torque;
-		}
-
-
-
+        }
         public void SetZeroVels()
         {
-	 if (mainBody == null)
-        {
-            Debug.LogError("ArticulationBody component is missing on " + mainBody.name);
-        } else{Debug.Log("VET " + mainBody.name);}
+            if (mainBody == null)
+            {
+                Debug.LogError("ArticulationBody component is missing on " + mainBody.name);
+            } 
+            else{ Debug.Log("VET " + mainBody.name); }
             mainBody.linearVelocity = Vector3.zero;
             mainBody.angularVelocity = Vector3.zero;
         }
-
         public void SetPosAndRot(Vector3 localPosition, Quaternion localRotation)
         {
             // Convert to world-space using the parent's transform
             Transform parentTransform = transform.parent;
-
             Vector3 worldPosition = parentTransform.TransformPoint(localPosition);
             //Quaternion worldRotation = parentTransform.rotation * localRotation;
-
             mainBody.TeleportRoot(worldPosition, localRotation);
         }
-        
+
         void FixedUpdate()
         {
-			// --- Get state
-			// -- Get position TODO: goal; local position 
+            // TODO: make method of get posision and get velocity
+            // Get position TODO: goal; local position 
             // Get world rotation
             var world_rot = mainBody.transform.rotation.eulerAngles; 
             var world_pos = mainBody.transform.position;
-
-			// TODO: what is the difference from doing this
-			var inverseTransformDirectionPos = mainBody.transform.InverseTransformDirection(mainBody.transform.position); // Local frame pos
+            // TODO: what is the difference from doing this
+            var inverseTransformDirectionPos = mainBody.transform.InverseTransformDirection(mainBody.transform.position); // Local frame pos
             // TODO: compared to this
-			//mainBody.transform.localPosition
-			var xyz = inverseTransformDirectionPos.To<NED>().ToDense(); // Transform local position to NED
+            //mainBody.transform.localPosition
+            var xyz = inverseTransformDirectionPos.To<NED>().ToDense(); // Transform local position to NED
             x = (float) xyz[0];
             y = (float) xyz[1];
             z = (float) xyz[2];
-			//print("NED pos");
-			//print(xyz[0]+","+xyz[1]+","+xyz[2]);
-			
-            // TODO: is this world rot in NED? How to get local. Confusing that it says velocity
-            var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
-			phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
-            theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
-			tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
-			//print("NED rot");
-			//print(phiThetaTau[0]+", "+phiThetaTau[1]+", "+phiThetaTau[2]);
+            //print("NED pos");
+            //print(xyz[0]+","+xyz[1]+","+xyz[2]);
 
-			// -- Get velocity
+            // TODO: is this world rot in NED? How to get local. Confusing that it says velocity. check definitions
+            var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
+            phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
+            theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
+            tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
+            //print("NED rot");
+            //print(phiThetaTau[0]+", "+phiThetaTau[1]+", "+phiThetaTau[2]);
+            
+            // Get velocity
             // Get and convert state vector from global to local reference point
             var inverseTransformDirection = mainBody.transform.InverseTransformDirection(mainBody.linearVelocity); // Local frame vel
             var transformAngularVelocity = mainBody.transform.InverseTransformDirection(mainBody.angularVelocity); // Local frame angular vel (gives negative velocities)
             // Convert angles, angular velocities and velocities to OSBS coordinate system
             // Body frame velocities in NED
-			var uvw = inverseTransformDirection.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
+            var uvw = inverseTransformDirection.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
             u = (float) uvw[0];
             v = (float) uvw[1];
             w = (float) uvw[2];
@@ -318,14 +328,14 @@ namespace DefaultNamespace
             
             // Restoring forces vector
             Vector<double> g_vec = Vector<double>.Build.DenseOfArray(new double[] 
-                {
+            {
                 (W-B)*Mathf.Sin(theta),
                 -(W-B)*Mathf.Cos(theta)*Mathf.Sin(phi),
                 -(W-B)*Mathf.Cos(theta)*Mathf.Cos(phi),
                 y_b*B*Mathf.Cos(theta)*Mathf.Cos(phi)-z_b*B*Mathf.Cos(theta)*Mathf.Sin(phi),
                 -z_b*B*Mathf.Sin(theta)-x_b*B*Mathf.Cos(theta)*Mathf.Cos(phi),
                 x_b*B*Mathf.Cos(theta)*Mathf.Sin(phi)+y_b*B*Mathf.Sin(theta)
-                }
+            }
             );
          
             // Dampening matrices

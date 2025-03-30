@@ -21,6 +21,7 @@ public class BrovAgent : Agent
     private BrovPhysics brovPhysics;
     Vector3 inputForce = Vector3.zero;
     Vector3 inputTorque = Vector3.zero;
+    private TeleopController teleController;
 
     // RL stuff
     // If using heuristic the forces does not need to be scaled while the rl output needs scaling
@@ -43,6 +44,7 @@ public class BrovAgent : Agent
     {
         Debug.Log("Init agent: " + gameObject.name);
         brovPhysics = GetComponentInParent<BrovPhysics>();
+        teleController = GetComponentInParent<TeleopController>();
         prevPos = brovPhysics.GetLocalPosNED();
         currPos = prevPos;
 
@@ -126,11 +128,24 @@ public class BrovAgent : Agent
     // What actions the agent can preform
     public override void OnActionReceived(ActionBuffers actions)
     {
-        ActionSegment<float> actionsSeg = actions.ContinuousActions;
+        /*
+         Input: actions, output from the model or heuristic action
+         6x1 NED frame, [-1, 1]
+         
+         Output: forces and torques that will act on the brov trough BrovPhysics
+         */
+        /*
+         * NEW VERSION
+         * ActionSegment<float> actionsSeg = actions.ContinuousActions;
+         * currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
+         * float[] actionsScaled = brovPhysics.ScaleActions(currActions);
+         * add actionsScaled into actionsSeg
+         * add to brovPhysics.setInputNED(slicea den, fint)
+         */
+
+        ActionSegment<float> actionsSeg = actions.ContinuousActions; // TODO: will this init as all zeros? test
         currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
 
-        if (!isHeuristic) // If action from rl, it needs to be scaled from [-1, 1] to [minValue, maxValue] for each dof
-        {
             // x,y,z noted with irl coord sys
             // TODO: make the scaling into a method
             int numActions = actionsSeg.Length;
@@ -150,7 +165,6 @@ public class BrovAgent : Agent
                 actionsSeg[i] = ((actionsSeg[i] + 1f) / 2f) * (ranges[i].y - ranges[i].x) + ranges[i].x;
             }
 
-        }
 		
         inputForce  = new Vector3(actionsSeg[0], actionsSeg[1], actionsSeg[2]);
         inputTorque = new Vector3(actionsSeg[3], actionsSeg[4], actionsSeg[5]);
@@ -158,68 +172,28 @@ public class BrovAgent : Agent
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        if (!isHeuristic) { isHeuristic = true; }
-        ActionSegment<float> continuousActions = actionsOut.ContinuousActions;    
-        // Teleop
-        if (Input.GetKey(KeyCode.W))
-        {
-            inputForce[0] += 85;
-        }
-        if (Input.GetKey(KeyCode.A))
-        {
-            inputForce[1] -= 85;
-        }
-        if (Input.GetKey(KeyCode.S))
-        {
-            inputForce[0] -= 85;
-        }
-        if (Input.GetKey(KeyCode.D))
-        {
-            inputForce[1] += 85;
-        }
-        if (Input.GetKey(KeyCode.Space))
-        {
-            inputForce[2] += 122;
-        }
-        if (Input.GetKey(KeyCode.LeftShift))
-        {
-            inputForce[2] -= 122;
-        }
-        if (Input.GetKey(KeyCode.Q))
-        {
-            inputTorque[2] -= 14;
-        }
-        if (Input.GetKey(KeyCode.E))
-        {
-            inputTorque[2] += 14;
-        }
-        if (Input.GetKey(KeyCode.X))
-        {
-            inputTorque[1] += 14;
-        }
-        if (Input.GetKey(KeyCode.C))
-        {
-            inputTorque[0] += 14;
-        }
+        ActionSegment<float> continuousActions = actionsOut.ContinuousActions;
+        float[] teleopInput = teleopController.GetTeleopInput();
+        // TODO: make below into a for-loop
         // Forces
-        continuousActions[0] = inputForce[0];
-        continuousActions[1] = inputForce[1];
-        continuousActions[2] = inputForce[2];
+        continuousActions[0] = teleopInput[0];
+        continuousActions[1] = teleopInput[1];
+        continuousActions[2] = teleopInput[2];
         // Torques
-        continuousActions[3] = inputTorque[0];
-        continuousActions[4] = inputTorque[1];
-        continuousActions[5] = inputTorque[2];
+        continuousActions[3] = teleopInput[3];
+        continuousActions[4] = teleopInput[4];
+        continuousActions[5] = teleopInput[5];
     }
     private void ContinousRewards() // TODO: make sure it does this at each time step
     {
         // r_progression
         float d_prev = Vector3.Distance(next2Gates[0], prevPos);
-		//print("d_prev " + d_prev);
+        //print("d_prev " + d_prev);
         currPos = brovPhysics.GetLocalPosNED();
         float d_curr = Vector3.Distance(next2Gates[0], currPos);
         float r_prog = 4*lambda1 * (d_prev - d_curr);
         //print("PROG REWARD: " + r_prog);
-        
+
         // r_perception
         Vector3 directionToGate = (NED.ConvertToRUF(currPos) - NED.ConvertToRUF(next2Gates[0])).normalized;
 		//print(directionToGate);

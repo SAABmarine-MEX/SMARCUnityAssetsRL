@@ -7,6 +7,10 @@ using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 using UnityEngine;
 using VehicleComponents.Actuators;
 
+/*
+ * TODO: explain OSBS
+ */
+
 namespace DefaultNamespace
 {
     public class BrovPhysics : MonoBehaviour
@@ -65,7 +69,17 @@ namespace DefaultNamespace
         double Kp = 0;
         double Mq = 0.8;
         double Nr = 0;
-        
+        // Dampining matrix
+        Matrix<double> D = DenseMatrix.OfDiagonalArray(new double[]
+        {
+            Xu,
+            Yv,
+            Zw,
+            Kp,
+            Mq,
+            Nr
+        });
+
         // Added mass coefficients 
         double X_udot = 6.36; // [kg]
         double Y_vdot = 7.12; // [kg]
@@ -73,12 +87,47 @@ namespace DefaultNamespace
         double K_pdot = 0.189; // [kg*m^2]
         double M_qdot = 0.135; // [kg*m^2]
         double N_rdot = 0.222; // [kg*m^2]
-        
+
         //Inertia 
         double I_x = 0.2818; // [kg*m^2], from OSBS's CAD
         double I_y = 0.245; // [kg*m^2], from OSBS's CAD
         double I_z = 0.3852; // [kg*m^2], from OSBS's CAD
-        
+
+        // Rigid body and added mass matrices
+        // Matrix<double> M_RB = DenseMatrix.OfDiagonalArray(new double[] {m, m, m, I_x, I_y, I_z});
+        Matrix<double> M_A = DenseMatrix.OfDiagonalArray(new double[] {X_udot, Y_vdot, Z_wdot, K_pdot, M_qdot, N_rdot});
+
+                    // Define T matrix
+            // Matrix<double> T = DenseMatrix.OfArray(new double[,]
+            // {
+            //     {-0.71, -0.71,  0.71,  0.71,  0,     0,    0,     0   },
+            //     {0.71,  -0.71,  0.71, -0.71,  0,     0,    0,     0   },
+            //     {0,      0,     0,     0,     1,     1,    1,     1   },
+            //     {-0.06,  0.06, -0.06,  0.06,  0.22, -0.22, 0.22, -0.22},
+            //     {-0.06, -0.06,  0.06,  0.06, -0.12, -0.12, 0.12,  0.12},
+            //     {0.99,  -0.99, -0.99,  0.99,  0,     0,    0,     0   }
+            // });
+        Matrix<double> M_inv = DenseMatrix.OfDiagonalArray(new double[] // Inverted total mass matrix (rigid body + added mass)
+        {
+            0.0504,
+            0.0485,
+            0.0311,
+            2.2272,
+            2.7397,
+            1.6892
+        });
+
+        Matrix<double> T = DenseMatrix.OfArray(new double[,]
+        {
+            { Math.Sqrt(2)/2,  Math.Sqrt(2)/2, -Math.Sqrt(2)/2, -Math.Sqrt(2)/2,  0,      0,       0,       0       },
+            { -Math.Sqrt(2)/2, Math.Sqrt(2)/2, -Math.Sqrt(2)/2,  Math.Sqrt(2)/2,  0,      0,       0,       0       },
+            { 0,               0,              0,               0,              -1,      1,       1,      -1       },
+            { 0,               0,              0,               0,               0.218,  0.218,  -0.218,  -0.218   },
+            { 0,                 0,              0,               0,               0.12,  -0.12,    0.12,   -0.12    },
+            { -0.1888,         0.1888,         0.1888,         -0.1888,          0,      0,       0,       0       }
+        });
+
+
         // Min and max force and torques acting on center of mass. TODO: double check with data sheet
         int nInput = 6;
         Vector2[] minMaxes = new Vector2[nInput];
@@ -248,190 +297,77 @@ namespace DefaultNamespace
             mainBody.TeleportRoot(worldPosition, localRotation);
         }
 
-        void FixedUpdate()
+        public Vector<float> GetPosNED2()
         {
-            // TODO: make method of get posision and get velocity
-            // Get position TODO: goal; local position 
-            // Get world rotation
-            var world_rot = mainBody.transform.rotation.eulerAngles; 
-            var world_pos = mainBody.transform.position;
             // TODO: what is the difference from doing this
             var inverseTransformDirectionPos = mainBody.transform.InverseTransformDirection(mainBody.transform.position); // Local frame pos
-            // TODO: compared to this
+            // TODO: compared to this. test
             //mainBody.transform.localPosition
             var xyz = inverseTransformDirectionPos.To<NED>().ToDense(); // Transform local position to NED
             x = (float) xyz[0];
             y = (float) xyz[1];
             z = (float) xyz[2];
-            //print("NED pos");
-            //print(xyz[0]+","+xyz[1]+","+xyz[2]);
-
+            return Vector<float>.Build.DenseOfArray(new float[] { x, y, z });
+        }
+        public Vector<float> GetRotNED2()
+        {
+            var world_rot = mainBody.transform.rotation.eulerAngles; 
             // TODO: is this world rot in NED? How to get local. Confusing that it says velocity. check definitions
             var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
             phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
             theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
             tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
-            //print("NED rot");
-            //print(phiThetaTau[0]+", "+phiThetaTau[1]+", "+phiThetaTau[2]);
-            
-            // Get velocity
-            // Get and convert state vector from global to local reference point
+            return Vector<float>.Build.DenseOfArray(new float[] { phi, theta, tau });
+        }
+        public Vector<float> GetPosStateNED2()
+        {
+            Vector<float> state = new Vector<float>;
+            state.AddRange(GetPosNED2());
+            state.AddRange(GetRotNED2());
+            return state;
+        }
+        public Vector<float> GetLinVelsNED2()
+        {
             var inverseTransformDirection = mainBody.transform.InverseTransformDirection(mainBody.linearVelocity); // Local frame vel
-            var transformAngularVelocity = mainBody.transform.InverseTransformDirection(mainBody.angularVelocity); // Local frame angular vel (gives negative velocities)
-            // Convert angles, angular velocities and velocities to OSBS coordinate system
-            // Body frame velocities in NED
-            var uvw = inverseTransformDirection.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
+            var uvw = inverseTransformDirection.To<NED>().ToDense();
             u = (float) uvw[0];
             v = (float) uvw[1];
             w = (float) uvw[2];
+            return Vector<float>.Build.DenseOfArray(new float[] { u, v, w });
+        }
+        public Vector<float> GetAngVelsNED2()
+        {
+            var transformAngularVelocity = mainBody.transform.InverseTransformDirection(mainBody.angularVelocity); // Local frame angular vel (gives negative velocities)
+            // Convert angles, angular velocities and velocities to OSBS coordinate system
             var pqr = FRD.ConvertAngularVelocityFromRUF(transformAngularVelocity).ToDense(); // FRD is same as NED for ANGLES ONLY
             p = (float) pqr[0];
             q = (float) pqr[1];
             r = (float) pqr[2];
-            
-            // print(uvw[0]+","+uvw[1]+","+uvw[2]);
-            // print(pqr[0]+","+pqr[1]+","+pqr[2]);
-        
-            // State vector
-            Vector<double> vel_vec = Vector<double>.Build.DenseOfArray(new double[] { u, v, w, p, q, r });
-           
-            // Rigid body and added mass matrices
-            // Matrix<double> M_RB = DenseMatrix.OfDiagonalArray(new double[] {m, m, m, I_x, I_y, I_z});
-            Matrix<double> M_A = DenseMatrix.OfDiagonalArray(new double[] {X_udot, Y_vdot, Z_wdot, K_pdot, M_qdot, N_rdot});
-           
-            // Coriollis and centripetal matrices
-            Matrix<double> C_RB = DenseMatrix.OfArray(new double[,]
+            return Vector<float>.Build.DenseOfArray(new float[] { p, q, r });
+        }
+        public Vector<float> GetStateVels2()
+        {
+            Vector<float> stateVels = new Vector<float>;
+            stateVels.AddRange(GetLinVels2());
+            stateVels.AddRange(GetAngVels2());
+            return stateVels;
+        }
+
+        private void CalculateBoancy()
+        {
+            var worldPos = mainBody.transform.position;
+            if (worldPos.y >= 0)
             {
-                {0,     0,      0,      0,      m*w,    -m*v    },
-                {0,     0,      0,      -m*w,   0,       m*u    },
-                {0,     0,      0,      m*v,    -m*u,    0      },
-                {0,     m*w,    -m*v,   0,      -I_z*r, -I_y*q  },
-                {-m*w,  0,      m*u,    I_z*r,  0,       I_x*p  },
-                {m*v,   -m*u,   0,      I_y*q,  -I_x*p,  0      },
-            });
-            Matrix<double> C_A = DenseMatrix.OfArray(new double[,]
-            {
-                {0,         0,          0,          0,          -Z_wdot*w,  Y_vdot*v    },
-                {0,         0,          0,          Z_wdot*w,   0,          -X_udot*u   },
-                {0,         0,          0,          -Y_vdot*v,  X_udot*u,   0           },
-                {0,         -Z_wdot*w,  Y_vdot*v,   0,          -N_rdot*r,  M_qdot*q    },
-                {Z_wdot*w,  0,          -X_udot*u,  N_rdot*r,   0,          -K_pdot*p   },
-                {-Y_vdot*v, X_udot*u,   0,          -M_qdot*q,  K_pdot*p,   0           }
-            });
-            Matrix<double> C = C_RB + C_A;
-            
-            B = rho*g*nabla;
-            if (world_pos.y >= 0)
-            {
-                B = 0;
+                B = 0; // TODO: maybe make into local variable
             }
-            
-            // Restoring forces vector
-            Vector<double> g_vec = Vector<double>.Build.DenseOfArray(new double[] 
+            else
             {
-                (W-B)*Mathf.Sin(theta),
-                -(W-B)*Mathf.Cos(theta)*Mathf.Sin(phi),
-                -(W-B)*Mathf.Cos(theta)*Mathf.Cos(phi),
-                y_b*B*Mathf.Cos(theta)*Mathf.Cos(phi)-z_b*B*Mathf.Cos(theta)*Mathf.Sin(phi),
-                -z_b*B*Mathf.Sin(theta)-x_b*B*Mathf.Cos(theta)*Mathf.Cos(phi),
-                x_b*B*Mathf.Cos(theta)*Mathf.Sin(phi)+y_b*B*Mathf.Sin(theta)
+                B = rho*g*nabla;
             }
-            );
-         
-            // Dampening matrices
-            Matrix<double> D = DenseMatrix.OfDiagonalArray(new double[]
-            {
-                Xu,
-                Yv,
-                Zw,
-                Kp,
-                Mq,
-                Nr
-            });
-            Matrix<double> Dn = DenseMatrix.OfDiagonalArray(new double[] 
-            {
-                Xuu*Mathf.Abs(u),
-                Yvv*Mathf.Abs(v), 
-                Zww*Mathf.Abs(w),
-                Kpp*Mathf.Abs(p),
-                Mqq*Mathf.Abs(q), 
-                Nrr*Mathf.Abs(r)
-            });
-            Matrix<double> D_of_vel = D + Dn;
-            
-            var v_c = 0; // Assume no ocean current. If desired to integrate it, info about it can be found in OSBS
-            var vr = vel_vec - v_c;
-            
-            // Calculate dampening and coriolis forces
-            var tau_sum_coriolis =  C * vel_vec;
-            var tau_sum_damping = D_of_vel*vr; 
+        }
 
-            // Separation into forces and torques
-            var coriolisForce  = tau_sum_coriolis.SubVector(0, 3).ToVector3();
-            var coriolisTorque = tau_sum_coriolis.SubVector(3, 3).ToVector3();
-            var RestoringForce  = g_vec.SubVector(0, 3).ToVector3();
-            var RestoringTorque = g_vec.SubVector(3, 3).ToVector3();
-            var force_damping = tau_sum_damping.SubVector(0, 3).ToVector3();
-            var torque_damping = tau_sum_damping.SubVector(3, 3).ToVector3();
-
-            force_damping = NED.ConvertToRUF(force_damping);
-            torque_damping = FRD.ConvertAngularVelocityToRUF(torque_damping);
-            coriolisForce = NED.ConvertToRUF(coriolisForce);
-            coriolisTorque = FRD.ConvertAngularVelocityToRUF(coriolisTorque);
-            RestoringForce = NED.ConvertToRUF(RestoringForce);
-            RestoringTorque = FRD.ConvertAngularVelocityToRUF(RestoringTorque);
-            
-            // VVV UNCOMMENT FOR FOLLOWING CAMERA VVV
-            //myCamera.transform.position = camera_offset + world_pos;
-            
-            // ROS Controlls
-            // Update propeller rpm's
-            float rpmTopBackRight = (float)PropTopBackRight.rpm;
-            float rpmTopFrontRight = (float)PropTopFrontRight.rpm;
-            float rpmTopBackLeft = (float)PropTopBackLeft.rpm;
-            float rpmTopFrontLeft = (float)PropTopFrontLeft.rpm;
-
-            float rpmBotBackRight = (float)PropBotBackRight.rpm;
-            float rpmBotFrontRight = (float)PropBotFrontRight.rpm;
-            float rpmBotBackLeft = (float)PropBotBackLeft.rpm;
-            float rpmBotFrontLeft = (float)PropBotFrontLeft.rpm;
-            
-            // Define T matrix
-            // Matrix<double> T = DenseMatrix.OfArray(new double[,]
-            // {
-            //     {-0.71, -0.71,  0.71,  0.71,  0,     0,    0,     0   },
-            //     {0.71,  -0.71,  0.71, -0.71,  0,     0,    0,     0   },
-            //     {0,      0,     0,     0,     1,     1,    1,     1   },
-            //     {-0.06,  0.06, -0.06,  0.06,  0.22, -0.22, 0.22, -0.22},
-            //     {-0.06, -0.06,  0.06,  0.06, -0.12, -0.12, 0.12,  0.12},
-            //     {0.99,  -0.99, -0.99,  0.99,  0,     0,    0,     0   }
-            // });
-            
-            Matrix<double> T = DenseMatrix.OfArray(new double[,]
-            {
-                { Math.Sqrt(2)/2,  Math.Sqrt(2)/2, -Math.Sqrt(2)/2, -Math.Sqrt(2)/2,  0,      0,       0,       0       },
-                { -Math.Sqrt(2)/2, Math.Sqrt(2)/2, -Math.Sqrt(2)/2,  Math.Sqrt(2)/2,  0,      0,       0,       0       },
-                { 0,               0,              0,               0,              -1,      1,       1,      -1       },
-                { 0,               0,              0,               0,               0.218,  0.218,  -0.218,  -0.218   },
-                { 0,                 0,              0,               0,               0.12,  -0.12,    0.12,   -0.12    },
-                { -0.1888,         0.1888,         0.1888,         -0.1888,          0,      0,       0,       0       }
-            });
-            
-            Vector<double> F_vec = Vector<double>.Build.DenseOfArray(new double[] 
-                {
-                    rpmBotFrontRight/rpmMax,
-                    rpmBotFrontLeft/rpmMax,
-                    rpmBotBackRight/rpmMax,
-                    rpmBotBackLeft/rpmMax,
-                    rpmTopFrontRight/rpmMax,
-                    rpmTopFrontLeft/rpmMax,
-                    rpmTopBackRight/rpmMax,
-                    rpmTopBackLeft/rpmMax
-                }
-            );
-            
-            var ROSForces = T * F_vec;
-            
+        private void SITL()
+        {
             // SITL:
             // if (Arusub_prep)
             // {
@@ -524,7 +460,134 @@ namespace DefaultNamespace
             //
             //     F_vec = F_vec_ardusub;
             // }
-            
+
+        }
+
+        private Vector<float> CalculateFossenForces(out var tauCoriolis, out var tauDamping, out Vector<double> tauRestoring, out var tauAddedInertia)
+        {
+            /*
+             * Input: Matrices and velocities for fossen
+             * Fossen equations:
+             * eta_dot = J(eta)*v
+             * M*v_dot + C(v)*v + D(v)*v + g(eta) = tau + tau_teather
+             * Output: Fossen forces
+             */
+            // C(v)*v: Coriolis forces
+            var tauCoriolis =  C * velVec;
+
+            // D(v)*v: Dampening forces
+            var v_c = 0; // Assume no ocean current. If desired to integrate it, info about it can be found in OSBS
+            var vr = velVec - v_c; 
+            tauDamping = D_of_vel*vr; 
+
+            // g(eta): restoring forces
+            tauRestoring = Vector<double>.Build.DenseOfArray(new double[]
+            {
+                (W-B)*Mathf.Sin(theta),
+                -(W-B)*Mathf.Cos(theta)*Mathf.Sin(phi),
+                -(W-B)*Mathf.Cos(theta)*Mathf.Cos(phi),
+                y_b*B*Mathf.Cos(theta)*Mathf.Cos(phi)-z_b*B*Mathf.Cos(theta)*Mathf.Sin(phi),
+                -z_b*B*Mathf.Sin(theta)-x_b*B*Mathf.Cos(theta)*Mathf.Cos(phi),
+                x_b*B*Mathf.Cos(theta)*Mathf.Sin(phi)+y_b*B*Mathf.Sin(theta)
+            }
+            );
+
+            // v_dot
+            var reactive_force_sum = (-g_vec - tau_sum_damping - tau_sum_coriolis);
+            Vector<double> input_forces_sum  = Vector<double>.Build.DenseOfArray(new double[] {inputForce[0], inputForce[1], inputForce[2], inputTorque[0], inputTorque[1], inputTorque[2] });
+            var total_force_sum = reactive_force_sum + input_forces_sum; // NOTE: if want to add teather forces, it should be added here
+            var vel_vec_dot = M_inv*total_force_sum;
+
+            // m*a  TODO: should this be here and if so, shouldnt it be included in total_force_sum? call fossen
+            tauAddedInertia = M_A * vel_vec_dot;
+        }
+        private Matrix<double> CalculateCMatrix(float u, float v, float w, float p, float q, float r)
+        {
+            // Coriollis and centripetal matrices
+            Matrix<double> C_RB = DenseMatrix.OfArray(new double[,]
+            {
+                {0,     0,      0,      0,      m*w,    -m*v    },
+                {0,     0,      0,      -m*w,   0,       m*u    },
+                {0,     0,      0,      m*v,    -m*u,    0      },
+                {0,     m*w,    -m*v,   0,      -I_z*r, -I_y*q  },
+                {-m*w,  0,      m*u,    I_z*r,  0,       I_x*p  },
+                {m*v,   -m*u,   0,      I_y*q,  -I_x*p,  0      },
+            });
+            Matrix<double> C_A = DenseMatrix.OfArray(new double[,]
+            {
+                {0,         0,          0,          0,          -Z_wdot*w,  Y_vdot*v    },
+                {0,         0,          0,          Z_wdot*w,   0,          -X_udot*u   },
+                {0,         0,          0,          -Y_vdot*v,  X_udot*u,   0           },
+                {0,         -Z_wdot*w,  Y_vdot*v,   0,          -N_rdot*r,  M_qdot*q    },
+                {Z_wdot*w,  0,          -X_udot*u,  N_rdot*r,   0,          -K_pdot*p   },
+                {-Y_vdot*v, X_udot*u,   0,          -M_qdot*q,  K_pdot*p,   0           }
+            });
+            Matrix<double> C = C_RB + C_A;
+            return C;
+        }
+        private Matrix<double> CalcuateDMatrix(float u, float v, float w, float p, float q, float r)
+        {
+            // Dampening matrices
+            Matrix<double> Dn = DenseMatrix.OfDiagonalArray(new double[] 
+            {
+                Xuu*Mathf.Abs(u),
+                Yvv*Mathf.Abs(v), 
+                Zww*Mathf.Abs(w),
+                Kpp*Mathf.Abs(p),
+                Mqq*Mathf.Abs(q), 
+                Nrr*Mathf.Abs(r)
+            });
+            Matrix<double> D_of_vel = D + Dn;
+            return D_of_vel;
+        }
+
+
+        void FixedUpdate()
+        {
+            // 1. Get state
+            Vector<float> posVec = GetStatePos2();
+            float x = posVec[0], y = posVec[1], z = posVec[2];
+            float phi = posVec[3], theta = posVec[4], tau = posVec[5];
+            Vector<float> velVec = GetStateVels2();
+            float u = velVec[0], v = velVec[1], w = velVec[2];
+            float p = velVec[3], q = velVec[4], r = velVec[5];
+
+            // 2. Calculate matrices dependent on state
+            Matrix<double> C = CalculateCMatrix(u, v, w, p, q, r);
+            CalculateBoancy();
+            Matrix<double> D_of_vel = CalculateDMatrix(u, v, w, p, q, r); // TODO: change variable name
+
+            // VVV UNCOMMENT FOR FOLLOWING CAMERA VVV
+            //myCamera.transform.position = camera_offset + world_pos;
+
+            // 3. Calculate forces
+            // ROS Controlls TODO: better understand
+            // Update propeller rpm's
+            // Top propellers
+            float rpmTopBackRight = (float)PropTopBackRight.rpm;
+            float rpmTopFrontRight = (float)PropTopFrontRight.rpm;
+            float rpmTopBackLeft = (float)PropTopBackLeft.rpm;
+            float rpmTopFrontLeft = (float)PropTopFrontLeft.rpm;
+            // Bottom propellers
+            float rpmBotBackRight = (float)PropBotBackRight.rpm;
+            float rpmBotFrontRight = (float)PropBotFrontRight.rpm;
+            float rpmBotBackLeft = (float)PropBotBackLeft.rpm;
+            float rpmBotFrontLeft = (float)PropBotFrontLeft.rpm;
+
+            Vector<double> F_vec = Vector<double>.Build.DenseOfArray(new double[] 
+            {
+                rpmBotFrontRight/rpmMax,
+                rpmBotFrontLeft/rpmMax,
+                rpmBotBackRight/rpmMax,
+                rpmBotBackLeft/rpmMax,
+                rpmTopFrontRight/rpmMax,
+                rpmTopFrontLeft/rpmMax,
+                rpmTopBackRight/rpmMax,
+                rpmTopBackLeft/rpmMax
+            }
+            );
+            var ROSForces = T * F_vec;
+
             // print("arduprepped thruster forces");
             for (int i = 0; i < F_vec.Count; i++)
             {
@@ -535,49 +598,43 @@ namespace DefaultNamespace
                 F_vec[i] = VoltageToForce(F_vec[i]);
                 // print(F_vec[i]);
             }
-            
-            // ADDED MASS
-            //var input_forces = inputForce.To<NED>().ToDense(); // Might need to revisit. Rel. velocity in point m block.
-            //var input_torques = FRD.ConvertAngularVelocityFromRUF(inputTorque).ToDense(); // FRD is same as NED for ANGLES ONLY (Negative since inputs are right handed )       
-            var reactive_force_sum = (-g_vec - tau_sum_damping - tau_sum_coriolis);
-            Vector<double> input_forces_sum  = Vector<double>.Build.DenseOfArray(new double[] {inputForce[0], inputForce[1], inputForce[2], inputTorque[0], inputTorque[1], inputTorque[2] });
-            var total_force_sum = reactive_force_sum + input_forces_sum;
-            //print(input_forces[0]+","+input_forces[1]+","+input_forces[2]);
-            
-            // TODO: could prob only be declared once? i.e. not in FixedUpdate()
-            Matrix<double> M_inv = DenseMatrix.OfDiagonalArray(new double[] // Inverted total mass matrix (rigid body + added mass)
-            {
-                0.0504,
-                0.0485,
-                0.0311,
-                2.2272,
-                2.7397,
-                1.6892
-            });
 
-            var vel_vec_dot = M_inv*total_force_sum;
-            var added_inertia = M_A * vel_vec_dot;
+            // Calculate fossen forces
+            var tauCoriolis, tauDamping, tauAddedInertia;
+            Vector<double> tauRestoring; // TODO: make the same datatype
+            CalculateFossenForces(out tauCoriolis, out tauDamping, out tauRestoring, out tauAddedInertia);
+            // Seperate forces and torques
+            var coriolisForce = tauCoriolis.SubVector(0, 3).ToVector3();
+            var coriolisTorque = tauCoriolis.SubVector(3, 3).ToVector3();
+            var dampingForce = tauDamping.SubVector(0, 3).ToVector3();
+            var dampingTorque = tauDamping.SubVector(3, 3).ToVector3();
+            var restoringForce  = g_vec.SubVector(0, 3).ToVector3();
+            var restoringTorque = g_vec.SubVector(3, 3).ToVector3();
             var addedForce = added_inertia.SubVector(0, 3).ToVector3();
             var addedTorque = added_inertia.SubVector(3, 3).ToVector3();
-			// from ned to ruf
+            // Convert to RUF
+            dampingForce = NED.ConvertToRUF(dampingForce);
+            dampingTorque = FRD.ConvertAngularVelocityToRUF(dampingTorque);
+            coriolisForce = NED.ConvertToRUF(coriolisForce);
+            coriolisTorque = FRD.ConvertAngularVelocityToRUF(coriolisTorque);
+            restoringForce = NED.ConvertToRUF(restoringForce);
+            restoringTorque = FRD.ConvertAngularVelocityToRUF(restoringTorque);
+            inputForce = NED.ConvertToRUF(inputForce);
+            inputTorque = FRD.ConvertAngularVelocityToRUF(inputTorque);
             addedForce = NED.ConvertToRUF(addedForce);
             addedTorque = FRD.ConvertAngularVelocityToRUF(addedTorque);
-			inputForce = NED.ConvertToRUF(inputForce);
-            inputTorque = FRD.ConvertAngularVelocityToRUF(inputTorque);
-            
-            // ADD forces to rigid body 
-            mainBody.AddRelativeForce(-force_damping);
+            // Add forces and torques to rigid body 
+            mainBody.AddRelativeForce(-dampingForce);
             mainBody.AddRelativeForce(-coriolisForce);
-            mainBody.AddRelativeForce(-RestoringForce);
+            mainBody.AddRelativeForce(-restoringForce);
             mainBody.AddRelativeForce(-addedForce);
             mainBody.AddRelativeForce(inputForce);
-            mainBody.AddRelativeTorque(-torque_damping);
+            mainBody.AddRelativeTorque(-dampingTorque);
             mainBody.AddRelativeTorque(-coriolisTorque);
-            mainBody.AddRelativeTorque(-RestoringTorque);
+            mainBody.AddRelativeTorque(-restoringTorque);
             mainBody.AddRelativeTorque(-addedTorque);
             mainBody.AddRelativeTorque(inputTorque);
-            // added mass torque and force
-            
+
             // Set RPMs for Visuals
             prop_top_back_right.SetDriveTargetVelocity(ArticulationDriveAxis.X, rpmTopBackRight);
             prop_top_front_right.SetDriveTargetVelocity(ArticulationDriveAxis.X, rpmTopFrontRight);
@@ -588,14 +645,14 @@ namespace DefaultNamespace
             prop_bot_front_right.SetDriveTargetVelocity(ArticulationDriveAxis.Z, rpmBotFrontRight);
             prop_bot_back_left.SetDriveTargetVelocity(ArticulationDriveAxis.Z, rpmBotBackLeft);
             prop_bot_front_left.SetDriveTargetVelocity(ArticulationDriveAxis.Z, rpmBotFrontLeft);
-            
+
             double VoltageToForce(double V)
             {
                 double force = -140.3*math.pow(V,9)+389.9*math.pow(V,7)-404.1*math.pow(V,5)+176.0*math.pow(V,3)+8.9*V;
                 return force;
             }
-            
-			// Reset input forces every fixed update
+
+            // Reset input forces every fixed update
             inputForce = Vector3.zero;
             inputTorque = Vector3.zero;
         }

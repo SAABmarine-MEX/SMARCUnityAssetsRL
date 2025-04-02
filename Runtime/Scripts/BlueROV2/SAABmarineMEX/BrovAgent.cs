@@ -21,7 +21,7 @@ public class BrovAgent : Agent
     private BrovPhysics brovPhysics;
     Vector3 inputForce = Vector3.zero;
     Vector3 inputTorque = Vector3.zero;
-    private TeleopController teleController;
+    private TeleopController teleopController;
 
     // RL stuff
     // If using heuristic the forces does not need to be scaled while the rl output needs scaling
@@ -44,9 +44,10 @@ public class BrovAgent : Agent
     {
         Debug.Log("Init agent: " + gameObject.name);
         brovPhysics = GetComponentInParent<BrovPhysics>();
-        teleController = GetComponentInParent<TeleopController>();
+        teleopController = GetComponentInParent<TeleopController>();
         prevPos = brovPhysics.GetLocalPosNED();
         currPos = prevPos;
+        
 
         // Get gate positions
         GameObject gates = GameObject.Find("Gates");
@@ -134,55 +135,30 @@ public class BrovAgent : Agent
          
          Output: forces and torques that will act on the brov trough BrovPhysics
          */
-        /*
-         * NEW VERSION
-         * ActionSegment<float> actionsSeg = actions.ContinuousActions;
-         * currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
-         * float[] actionsScaled = brovPhysics.ScaleActions(currActions);
-         * add actionsScaled into actionsSeg
-         * add to brovPhysics.setInputNED(slicea den, fint)
-         */
-
-        ActionSegment<float> actionsSeg = actions.ContinuousActions; // TODO: will this init as all zeros? test
+        ActionSegment<float> actionsSeg = actions.ContinuousActions;
         currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
-
-            // x,y,z noted with irl coord sys
-            // TODO: make the scaling into a method
-            int numActions = actionsSeg.Length;
-            Vector2[] ranges = new Vector2[numActions];
-            // min max ranges for each dof
-            // TODO: make these into variables since they are used in the heuristic as well
-            ranges[0] = new Vector2(-85, 85); // x
-            ranges[1] = new Vector2(-85f, 85f); // y
-            ranges[2] = new Vector2(-122f, 122f); // z
-            ranges[3] = new Vector2(-14f, 14f); // roll
-            ranges[4] = new Vector2(-14f, 14f); // pitch
-            ranges[5] = new Vector2(-14f, 14f); // yaw
-
-            // Scale each continuous action using its specific range.
-            for (int i = 0; i < numActions; i++)
-            {
-                actionsSeg[i] = ((actionsSeg[i] + 1f) / 2f) * (ranges[i].y - ranges[i].x) + ranges[i].x;
-            }
-
-		
-        inputForce  = new Vector3(actionsSeg[0], actionsSeg[1], actionsSeg[2]);
-        inputTorque = new Vector3(actionsSeg[3], actionsSeg[4], actionsSeg[5]);
+        Vector<float> actionsScaled = brovPhysics.ScaleActions(currActions);
+        
+        for (int i = 0; i < actionsSeg.Length; i++)
+        {
+            actionsSeg[i] = actionsScaled[i];
+        }
+        //print(actionsScaled[0]);
+        inputForce  = new Vector3(actionsScaled[0], actionsScaled[1], actionsScaled[2]);
+        inputTorque = new Vector3(actionsScaled[3], actionsScaled[4], actionsScaled[5]);
+        //print(inputForce[0]);
         brovPhysics.SetInputNED(inputForce, inputTorque);
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         ActionSegment<float> continuousActions = actionsOut.ContinuousActions;
-        float[] teleopInput = teleopController.GetTeleopInput();
-        // TODO: make below into a for-loop
-        // Forces
-        continuousActions[0] = teleopInput[0];
-        continuousActions[1] = teleopInput[1];
-        continuousActions[2] = teleopInput[2];
-        // Torques
-        continuousActions[3] = teleopInput[3];
-        continuousActions[4] = teleopInput[4];
-        continuousActions[5] = teleopInput[5];
+        Vector<float> teleopInput = teleopController.GetTeleopInput();
+        for (int i = 0; i < continuousActions.Length; i++)
+        {
+            continuousActions[i] = teleopInput[i];
+        }
+        //print("---TELE X---");
+        //print(continuousActions[0]);
     }
     private void ContinousRewards() // TODO: make sure it does this at each time step
     {

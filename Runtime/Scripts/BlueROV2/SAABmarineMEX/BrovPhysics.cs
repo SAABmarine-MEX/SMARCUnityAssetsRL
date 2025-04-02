@@ -185,7 +185,12 @@ namespace DefaultNamespace
         }
         public Vector<float> GetLocalRotEulerNED()
         {
-            return new Vector<float>.Build.DenseOfArray(new float[] {phi*Mathf.Rad2Deg, theta*Mathf.Rad2Deg, tau*Mathf.Rad2Deg}); // TODO: can this be done in simpler way?
+            return Vector<float>.Build.DenseOfArray(new float[] 
+            {
+            phi * Mathf.Rad2Deg,
+            theta * Mathf.Rad2Deg,
+            tau * Mathf.Rad2Deg
+            });
         }
         // TODO: make a method that gives the full state combining the above
         public Vector3 GetForwardUnitVec() { return mainBody.transform.forward; }

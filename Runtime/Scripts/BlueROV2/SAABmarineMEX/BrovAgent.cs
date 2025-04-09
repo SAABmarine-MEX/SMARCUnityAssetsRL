@@ -23,31 +23,39 @@ public class BrovAgent : Agent
     Vector3 inputTorque = Vector3.zero;
     private TeleopController teleopController;
 
+    
     // RL stuff
     // If using heuristic the forces does not need to be scaled while the rl output needs scaling
-    private bool isHeuristic = false;
-    // For gate
+    private bool isHeuristic = false; // TODO: remove later on. this will be decided by ros
+    
+    // For gates
     private List<Vector3> gatePositions = new List<Vector3>();
     private List<Vector3> next2Gates = new List<Vector3>() { Vector3.zero, Vector3.zero };
     private int iNextGate = 0;
+    
     // For continous rewards
     private Vector3 prevPos;
     private Vector3 currPos;
     Vector<float> prevActions = Vector<float>.Build.Dense(6, 0f);
     Vector<float> currActions = Vector<float>.Build.Dense(6, 0f);
+    
     // RL training parameters
     private float gamma = 0.99f;
     private float epsilon = 0.2f;
     private float lambda1 = 1f, lambda2 = 0.02f, lambda3 = -10f, lambda4 = -2e-4f, lambda5 = -1e-4f; // NOTE: lambda3=-10 in report
-
+    
     public override void Initialize()
     {
         Debug.Log("Init agent: " + gameObject.name);
+        GameObject Env = GameObject.Find("Env");
+        
+        // Get components
         brovPhysics = GetComponentInParent<BrovPhysics>();
         teleopController = GetComponentInParent<TeleopController>();
+        
+        // Init position
         prevPos = brovPhysics.GetLocalPosNED();
         currPos = prevPos;
-        
 
         // Get gate positions
         GameObject gates = GameObject.Find("Gates");
@@ -56,10 +64,10 @@ public class BrovAgent : Agent
             // Assumption: Gates are sorted in the desired track order in the Unity scene, i.e. first child is first gate etc.
             foreach (Transform child in gates.transform)
             {
-                var gatePosTemp = child.localPosition.To<NED>().ToDense(); // Convert to NED frame instead of Unity standard RUF frame
+                var gatePosTemp = child.position.To<NED>().ToDense(); // Convert to NED frame instead of Unity standard RUF frame
                 Vector3 gatePos = new Vector3((float)gatePosTemp[0], (float)gatePosTemp[1], (float)gatePosTemp[2]);
                 gatePositions.Add(gatePos);
-               }
+            }
         }
         else
         {
@@ -70,7 +78,7 @@ public class BrovAgent : Agent
     public override void OnEpisodeBegin()
     {
         // Reset the Brov to its starting position TODO: later, make the starting position more random
-        Vector3 localStartPos = new Vector3(3.5f, 0.5f, 0.4f); // TODO: make it relative to the same origin as it will be irl
+        Vector3 localStartPos = new Vector3(0.0f, -0.1f, 0.6f); // TODO: make it relative to the same origin as it will be irl
         Quaternion localStartRot = Quaternion.Euler(0, 0, 0);
         brovPhysics.SetZeroVels();
         brovPhysics.SetPosAndRot(localStartPos, localStartRot);
@@ -90,17 +98,17 @@ public class BrovAgent : Agent
 
         // 1. State
         //sensor.AddObservation(brovPhysics.GetLocalPos());
-        sensor.AddObservation(brovPhysics.GetLocalRotEulerNED());
-        sensor.AddObservation(brovPhysics.GetVelocity());
+        sensor.AddObservation(brovPhysics.GetQuaternionNED()); // 1x4 
+        sensor.AddObservation(brovPhysics.GetVelocity()); // 1x6
 
         // 2. Relative position to next gate NOTE: Now it only uses the first gate as that is how it is done in the drone racing paper
         Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetLocalPosNED();
-        sensor.AddObservation(relVec2Gate1);
+        sensor.AddObservation(relVec2Gate1); // 1x3
         //Vector3 relVec2Gate2 = next2Gates[1] - brovPhysics.GetLocalPos();
         //sensor.AddObservation(relVec2Gate2); // Relative vector to second next gate
 
         // 3. Previous action
-        sensor.AddObservation(prevActions); // TODO: maybe change this to be ActionSegment data type? Does it matter?
+        sensor.AddObservation(prevActions); // 1x6 TODO: maybe change this to be ActionSegment data type? Does it matter?
     }
 
     public List<float> GetModelInput()
@@ -112,7 +120,9 @@ public class BrovAgent : Agent
         List<float> modelInput = new List<float>();
 
         // 1. State
-        modelInput.AddRange(brovPhysics.GetLocalRotEulerNED());
+        Quaternion q = brovPhysics.GetQuaternionNED();
+        List<float> quaternionList = new List<float> { q.x, q.y, q.z, q.w };
+        modelInput.AddRange(quaternionList);
         modelInput.AddRange(brovPhysics.GetVelocity());
 
         // 2. Relative position to next gate
@@ -141,14 +151,19 @@ public class BrovAgent : Agent
         
         for (int i = 0; i < actionsSeg.Length; i++)
         {
-            actionsSeg[i] = actionsScaled[i];
+            //actionsSeg[i] = actionsScaled[i];
         }
         //print(actionsScaled[0]);
         inputForce  = new Vector3(actionsScaled[0], actionsScaled[1], actionsScaled[2]);
         inputTorque = new Vector3(actionsScaled[3], actionsScaled[4], actionsScaled[5]);
+        
+        //inputForce  = new Vector3(currActions[0], currActions[1], currActions[2]);
+        //inputTorque = new Vector3(currActions[3], currActions[4], currActions[5]);
+        
         //print(inputForce[0]);
         brovPhysics.SetInputNED(inputForce, inputTorque);
     }
+    
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         ActionSegment<float> continuousActions = actionsOut.ContinuousActions;
@@ -156,6 +171,7 @@ public class BrovAgent : Agent
         for (int i = 0; i < continuousActions.Length; i++)
         {
             continuousActions[i] = teleopInput[i];
+            //actionsOut.ContinuousActions[i] = continuousActions[i];
         }
         //print("---TELE X---");
         //print(continuousActions[0]);
@@ -164,11 +180,13 @@ public class BrovAgent : Agent
     {
         // r_progression
         float d_prev = Vector3.Distance(next2Gates[0], prevPos);
+        print("gate1:"+ next2Gates[0]);
+        print("prev pos: " + prevPos);
         //print("d_prev " + d_prev);
         currPos = brovPhysics.GetLocalPosNED();
         float d_curr = Vector3.Distance(next2Gates[0], currPos);
         float r_prog = 4*lambda1 * (d_prev - d_curr);
-        //print("PROG REWARD: " + r_prog);
+        print("PROG REWARD: " + r_prog);
 
         // r_perception
         Vector3 directionToGate = (NED.ConvertToRUF(currPos) - NED.ConvertToRUF(next2Gates[0])).normalized;

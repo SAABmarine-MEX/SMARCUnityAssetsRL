@@ -71,7 +71,7 @@ public class BrovRLNode : MonoBehaviour
         // Get input for rl-model
 
         List<float> input = brovAgent.GetModelInput();
-        print(input);
+        //print(input);
         float[] inputArray = input.ToArray();
         double[] doubleArray = Array.ConvertAll(inputArray, x => (double)x);
         Float64MultiArrayMsg stateArray = new Float64MultiArrayMsg

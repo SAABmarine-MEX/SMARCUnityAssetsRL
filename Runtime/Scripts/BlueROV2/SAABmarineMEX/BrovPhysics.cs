@@ -126,6 +126,11 @@ namespace DefaultNamespace
         // Velocities
         float u, v, w;
         float p, q, r;
+        
+        
+        // This conversion quaternion maps ENU to NED.
+        // Verify that this works as expected for your setup.
+        private Quaternion conversionQuaternion = new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f);
 
         void Start()
         {
@@ -276,6 +281,17 @@ namespace DefaultNamespace
             theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
             tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
             return Vector<float>.Build.DenseOfArray(new float[] { phi, theta, tau });
+        }
+
+        public Quaternion GetQuaternionNED()
+        {
+            // Get orientation in Unity's ENU frame
+            Quaternion q_enu = mainBody.transform.rotation;
+        
+            // Convert quaternion from ENU to NED
+            Quaternion q_ned = conversionQuaternion * q_enu * Quaternion.Inverse(conversionQuaternion);
+
+            return q_ned;
         }
 
         public Vector<float> GetStatePosNED2() // TODO: rename to GetPoseNED2() instead

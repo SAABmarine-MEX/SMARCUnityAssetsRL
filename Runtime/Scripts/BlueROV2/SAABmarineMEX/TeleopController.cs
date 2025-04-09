@@ -21,48 +21,48 @@ public class TeleopController : MonoBehaviour
         // x
         if (Input.GetKey(KeyCode.W))
         {
-            input[0] += 0.5f; //floorAndRoofCheck(input[0]+teleopSense);
+            input[0] += 1f; //floorAndRoofCheck(input[0]+teleopSense);
         }
         if (Input.GetKey(KeyCode.S))
         {
-            input[0] -= 0.5f; // floorAndRoofCheck(input[0]-teleopSense);
+            input[0] -= 1f; // floorAndRoofCheck(input[0]-teleopSense);
         }
         // y
         if (Input.GetKey(KeyCode.D))
         {
-            input[1] += 0.5f; // floorAndRoofCheck(input[1]+teleopSense);
+            input[1] += 1f; // floorAndRoofCheck(input[1]+teleopSense);
         }
         if (Input.GetKey(KeyCode.A)) 
         {
-            input[1] -= 0.5f; //floorAndRoofCheck(input[1]-teleopSense);
+            input[1] -= 1f; //floorAndRoofCheck(input[1]-teleopSense);
         }
         // z. NOTE: In NED, positive z is down
         if (Input.GetKey(KeyCode.Space))
         {
-            input[2] -= 0.5f; //floorAndRoofCheck(input[2]-teleopSense);
+            input[2] -= 1f; //floorAndRoofCheck(input[2]-teleopSense);
         }
         if (Input.GetKey(KeyCode.LeftShift))
         {
-            input[2] += 0.5f; //floorAndRoofCheck(input[2]+teleopSense);
+            input[2] += 1f; //floorAndRoofCheck(input[2]+teleopSense);
         }
         // yaw
         if (Input.GetKey(KeyCode.Q))
         {
-            input[5] -= 0.5f;//floorAndRoofCheck(input[5]-teleopSense);
+            input[5] -= 1f;//floorAndRoofCheck(input[5]-teleopSense);
         }
         if (Input.GetKey(KeyCode.E))
         {
-            input[5] += 0.5f;//floorAndRoofCheck(input[5]+teleopSense);
+            input[5] += 1f;//floorAndRoofCheck(input[5]+teleopSense);
         }
         // pitch
         if (Input.GetKey(KeyCode.X))
         {
-            input[4] += 0.5f; // floorAndRoofCheck(input[4]+teleopSense);
+            input[4] += 1f; // floorAndRoofCheck(input[4]+teleopSense);
         }
         // roll
         if (Input.GetKey(KeyCode.C))
         {
-            input[3] += 0.5f;//floorAndRoofCheck(input[3]+teleopSense);
+            input[3] += 1f;//floorAndRoofCheck(input[3]+teleopSense);
         }
         //else{ input = Vector<float>.Build.Dense(6, 0f); }
       return input;

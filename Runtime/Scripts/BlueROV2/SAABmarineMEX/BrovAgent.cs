@@ -22,6 +22,7 @@ public class BrovAgent : Agent
     Vector3 inputForce = Vector3.zero;
     Vector3 inputTorque = Vector3.zero;
     private TeleopController teleopController;
+    private GameObject map;
 
     
     // RL stuff
@@ -47,24 +48,34 @@ public class BrovAgent : Agent
     public override void Initialize()
     {
         Debug.Log("Init agent: " + gameObject.name);
-        GameObject Env = GameObject.Find("Env");
+        map = GameObject.Find("map");
         
         // Get components
         brovPhysics = GetComponentInParent<BrovPhysics>();
         teleopController = GetComponentInParent<TeleopController>();
         
         // Init position
-        prevPos = brovPhysics.GetLocalPosNED();
+        prevPos = brovPhysics.GetPosMapNED();
         currPos = prevPos;
 
-        // Get gate positions
-        GameObject gates = GameObject.Find("Gates");
+        // Get checkpoints positions
+        GameObject gates = GameObject.Find("Checkpoints");
         if (gates != null)
         {
             // Assumption: Gates are sorted in the desired track order in the Unity scene, i.e. first child is first gate etc.
             foreach (Transform child in gates.transform)
             {
-                var gatePosTemp = child.position.To<NED>().ToDense(); // Convert to NED frame instead of Unity standard RUF frame
+                // TODO: against brov position
+                Vector3 localPosition = map.transform.InverseTransformPoint(child.transform.position);
+                print("map frame: x" + localPosition.To<NED>().ToDense()[0]);
+                print("map frame: y" + localPosition.To<NED>().ToDense()[1]);
+                print("map frame: z" + localPosition.To<NED>().ToDense()[2]);
+                
+                // world frame DONT WANT
+                //var gatePosTemp = child.position.To<NED>().ToDense(); // Convert to NED frame instead of Unity standard RUF frame
+                //print("world frame: x" + gatePosTemp[0]);
+                
+                var gatePosTemp = localPosition.To<NED>().ToDense();
                 Vector3 gatePos = new Vector3((float)gatePosTemp[0], (float)gatePosTemp[1], (float)gatePosTemp[2]);
                 gatePositions.Add(gatePos);
             }
@@ -102,7 +113,7 @@ public class BrovAgent : Agent
         sensor.AddObservation(brovPhysics.GetVelocity()); // 1x6
 
         // 2. Relative position to next gate NOTE: Now it only uses the first gate as that is how it is done in the drone racing paper
-        Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetLocalPosNED();
+        Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetPosMapNED();
         sensor.AddObservation(relVec2Gate1); // 1x3
         //Vector3 relVec2Gate2 = next2Gates[1] - brovPhysics.GetLocalPos();
         //sensor.AddObservation(relVec2Gate2); // Relative vector to second next gate
@@ -127,7 +138,7 @@ public class BrovAgent : Agent
 
         // 2. Relative position to next gate
         // TODO: make next2gates into float array so this code can be simplified
-        Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetLocalPosNED();
+        Vector3 relVec2Gate1 = next2Gates[0] - brovPhysics.GetPosMapNED();
         float[] floatArray2 = new float[] { relVec2Gate1.x, relVec2Gate1.y, relVec2Gate1.z };
         modelInput.AddRange(floatArray2);
 
@@ -180,23 +191,28 @@ public class BrovAgent : Agent
     {
         // r_progression
         float d_prev = Vector3.Distance(next2Gates[0], prevPos);
-        print("gate1:"+ next2Gates[0]);
-        print("prev pos: " + prevPos);
+        //print("gate1:"+ next2Gates[0]);
+        //print("prev pos: " + prevPos);
         //print("d_prev " + d_prev);
-        currPos = brovPhysics.GetLocalPosNED();
+        currPos = brovPhysics.GetPosMapNED();
         float d_curr = Vector3.Distance(next2Gates[0], currPos);
-        float r_prog = 4*lambda1 * (d_prev - d_curr);
-        print("PROG REWARD: " + r_prog);
+        float r_prog = 6*lambda1 * (d_prev - d_curr);
+        //print("PROG REWARD: " + r_prog);
 
         // r_perception
-        Vector3 directionToGate = (NED.ConvertToRUF(currPos) - NED.ConvertToRUF(next2Gates[0])).normalized;
-		//print(directionToGate);
-		//print("ANGLE: " + Vector3.Angle(brovPhysics.GetForwardUnitVec(), NED.ConvertToRUF(directionToGate)));
-        //float angleToGate = Mathf.Acos(Vector3.Dot(brovPhysics.GetForwardUnitVec(), directionToGate)) * Mathf.Rad2Deg; // TODO: why minsta runt 30??
-        float angleToGate = Vector3.Angle(brovPhysics.GetForwardUnitVec(), NED.ConvertToRUF(directionToGate));
-		//print("angle to gate " + angleToGate);
-		float part = lambda3 * Mathf.Pow(angleToGate, 2); // NOTE: pow of 2 instead of 4 as in the report
-        float r_perc = lambda2 * Mathf.Exp(part);
+        Vector3 directionToGate = (NED.ConvertToRUF(next2Gates[0]) - NED.ConvertToRUF(currPos)).normalized;
+		//print("direction to gate norm:" + directionToGate);
+        //Debug.DrawRay(brovPhysics.mainBody.transform.position, directionToGate * 2f, Color.red);
+        //print("fowrard: " + brovPhysics.GetForwardUnitVec());
+        //Debug.DrawRay(brovPhysics.mainBody.transform.position, brovPhysics.GetForwardUnitVec() * 2f, Color.blue);
+        
+        //directionToGate.y = 0;
+        float angleToGate = Vector3.SignedAngle(brovPhysics.GetForwardUnitVec(), directionToGate, Vector3.up); // yaw angle to gate
+        //print("yaw: " + angleToGate);
+        // TODO: this formula doesnt make sense??? from the report
+		float part = lambda3 * Mathf.Pow(angleToGate, 4); // NOTE: pow of 2 instead of 4 as in the report
+        //float r_perc = lambda2 * Mathf.Exp(part);
+        float r_perc = 0;
         //print("PERC REWARD: " + r_perc);
 	
         // r_command
@@ -231,9 +247,16 @@ public class BrovAgent : Agent
         float magnitude = Mathf.Pow(actionDiffNorm, 2);
         float r_cmd = lambda5*magnitude;
         //print("CMD REWARD: " + magnitude);
+
+        float r_tak = 0f;
+        if (brovPhysics.GetHeight() >= 0)
+        {
+            //Debug.LogError("AAAAJ TAK");
+            r_tak = -5.0f;
+        }
 		
         // Sum tot reward
-        float r_t = r_prog + r_perc + r_cmd;        
+        float r_t = r_prog + r_perc + r_cmd + r_tak;        
 		AddReward(r_t);
         //print("TOT REWARD: " + r_t);
         
@@ -243,7 +266,7 @@ public class BrovAgent : Agent
     
     private void OnTriggerEnter(Collider other)
     {
-        print("OnTriggerEnter");
+        //print("OnTriggerEnter");
         // Try to get the CheckpointData component from the collider.
         CheckpointSingle cpData = other.GetComponent<CheckpointSingle>();
         if (cpData != null)
@@ -269,7 +292,7 @@ public class BrovAgent : Agent
         }
         if (other.gameObject.tag == "Wall")
         {
-            print("AJ VÄGG");
+            //print("AJ VÄGG");
             AddReward(-5f);
             EndEpisode();
         }

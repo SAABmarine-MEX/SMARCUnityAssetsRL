@@ -16,15 +16,20 @@ using DefaultNamespace;
 
 public class BrovRLNode : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    private BrovPhysics brovPhysics; // Used to apply forces to the brov
+    private BrovAgent brovAgent; // Used to get the input to the model
+    
+    
+    // Ros stuff
     ROSConnection ros;
-    public string topicInput = "/controller_input"; // will publish state
-    public string topicOutput = "/controller_output"; // will subscribe for actuation
-    public string topicControlMode = "/controller_mode"; // will publish control mode
-    private BrovPhysics brovPhysics;
-    private BrovAgent brovAgent;
+    
+    // Topics
+    public string topicInput = "/controller_input"; // Will publish the controller input
+    public string topicOutput = "/controller_output"; // Will subscribe for actuation
+    public string topicControlMode = "/controller_mode"; // Will subscribe for control mode (for sim: manual or rl)
     public bool controlMode = true;
     
+    /*
     public void OnTickChange(bool tick) // TODO: attribute no longer needed and change method name to more suitable for controlmodechange
     { // NOTE: not longer used since button was removed
         controlMode = !controlMode;
@@ -34,17 +39,29 @@ public class BrovRLNode : MonoBehaviour
         };
         ros.Publish(topicControlMode, controlModeChange); // TODO: change so the python side understand its initial value. Either create seperate for first time or that it always sends. Reckon only first time would be smartest
     }
+    */
+    
     void Start()
     {
         brovPhysics = GetComponent<BrovPhysics>(); // get brov physics component
         brovAgent = GetComponentInChildren<BrovAgent>();
-        // ros stuff
+        
+        
+        // Ros stuff
         ros = ROSConnection.GetOrCreateInstance();
-        ros.RegisterPublisher<Float64MultiArrayMsg>(topicInput); 
-        ros.RegisterPublisher<BoolMsg>(topicControlMode);
-        ros.Subscribe<Float64MultiArrayMsg>(topicOutput, RecieveOutput);
+        
+        // Pubs
+        ros.RegisterPublisher<Float64MultiArrayMsg>(topicInput);
         InvokeRepeating("PublishState", 0.02f, 0.02f);
-        InvokeRepeating("PublishMode", 0.02f, 0.02f);
+        
+        // Subs
+        ros.Subscribe<BoolMsg>(topicControlMode, OnTopicControlModeChange);
+        ros.Subscribe<Float64MultiArrayMsg>(topicOutput, RecieveOutput);
+    }
+
+    void OnTopicControlModeChange(BoolMsg msg)
+    {
+        controlMode = msg.data;
     }
 
     void PublishMode()

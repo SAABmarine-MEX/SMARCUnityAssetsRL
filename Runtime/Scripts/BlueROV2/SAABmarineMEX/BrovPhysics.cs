@@ -131,9 +131,14 @@ namespace DefaultNamespace
         // This conversion quaternion maps ENU to NED.
         // Verify that this works as expected for your setup.
         private Quaternion conversionQuaternion = new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f);
+        
+        public GameObject map;
 
         void Start()
         {
+            //map = GameObject.Find("map");
+            if (map == null) Debug.LogError("map is null!");
+            else{ Debug.Log("MAP EXISTS");}
             //Matrices
             // Dampining matrix
             D = DenseMatrix.OfDiagonalArray(new double[]
@@ -150,7 +155,7 @@ namespace DefaultNamespace
             M_A = DenseMatrix.OfDiagonalArray(new double[] {X_udot, Y_vdot, Z_wdot, K_pdot, M_qdot, N_rdot});
 
             Debug.Log("Agent:" + gameObject.name);
-            // min max ranges for each dof  TODO: double check with data sheet
+            // min max ranges for each dof, used during autumn, from OSBS
             minMaxes = new Vector2[nInput];
             minMaxes[0] = new Vector2(-85f, 85f); // x
             minMaxes[1] = new Vector2(-85f, 85f); // y
@@ -158,6 +163,14 @@ namespace DefaultNamespace
             minMaxes[3] = new Vector2(-14f, 14f); // roll
             minMaxes[4] = new Vector2(-14f, 14f); // pitch
             minMaxes[5] = new Vector2(-14f, 14f); // yaw
+            
+            // from https://www.mdpi.com/2076-3417/14/17/7453#FD5-applsci-14-07453
+            minMaxes[0] = new Vector2(-141.29f, 141.29f); // x
+            minMaxes[1] = new Vector2(-141.29f, 141.29f); // y
+            minMaxes[2] = new Vector2(-199.81f, 199.81f); // z
+            minMaxes[3] = new Vector2(-43.56f, 43.56f); // roll
+            minMaxes[4] = new Vector2(-23.98f, 23.98f); // pitch
+            minMaxes[5] = new Vector2(-37.72f, 37.72f); // yaw
             /*
             // Get all propeller articulation bodies
             prop_top_back_right = transform.Find("odom/base_link/prop_top_back_right_link").GetComponent<ArticulationBody>();
@@ -272,6 +285,16 @@ namespace DefaultNamespace
             return Vector<float>.Build.DenseOfArray(new float[] { x, y, z });
         }
 
+        public Vector3 GetPosMapNED()
+        {
+            Vector3 localPosition = map.transform.InverseTransformPoint(mainBody.transform.position);
+            var xyz = localPosition.To<NED>().ToDense();
+            x = (float) xyz[0];
+            y = (float) xyz[1];
+            z = (float) xyz[2];
+            return new Vector3(x, y, z);
+        }
+
         public Vector<float> GetRotNED2()
         {
             var world_rot = mainBody.transform.rotation.eulerAngles; 
@@ -282,6 +305,7 @@ namespace DefaultNamespace
             tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
             return Vector<float>.Build.DenseOfArray(new float[] { phi, theta, tau });
         }
+        
 
         public Quaternion GetQuaternionNED()
         {
@@ -364,6 +388,12 @@ namespace DefaultNamespace
 
 
         public Vector3 GetForwardUnitVec() { return mainBody.transform.forward; }
+        public Vector3 GetForwardUnitVecMAP()
+        {
+            Vector3 forward = map.transform.InverseTransformPoint(mainBody.transform.forward);
+   
+            return forward;
+        }
         public Vector3 GetForwardUnitVecNED() 
         { 
             Vector3 unityForward = mainBody.transform.forward;
@@ -399,7 +429,7 @@ namespace DefaultNamespace
             {
                 Debug.LogError("ArticulationBody component is missing on " + mainBody.name);
             } 
-            else{ Debug.Log("VET " + mainBody.name); }
+            //else{ Debug.Log("VET " + mainBody.name); }
             mainBody.linearVelocity = Vector3.zero;
             mainBody.angularVelocity = Vector3.zero;
         }
@@ -413,7 +443,10 @@ namespace DefaultNamespace
             mainBody.TeleportRoot(worldPosition, localRotation);
         }
 
-
+        public float GetHeight()
+        {
+            return mainBody.transform.position.y;
+        }
         // Private methods
         private void CalculateBoancy()
         {
@@ -426,6 +459,12 @@ namespace DefaultNamespace
             {
                 B = rho*g*nabla;
             }
+        }
+
+        public void SendPwmToThrusters(float[] pwms)
+        {
+            // pwm range: [-1.0, 1.0]
+            
         }
 
         private void SITL() // TODO: implement SITL

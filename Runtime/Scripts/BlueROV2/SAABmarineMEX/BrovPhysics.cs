@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 using UnityEngine;
 using VehicleComponents.Actuators;
+using System.Collections.Generic;
 
 /*
  * The article: An Open-Source Benchmark Simulator: Control of a BlueROV2 Underwater Robot, refered to as (OSBS) in the code,
@@ -27,15 +28,17 @@ namespace DefaultNamespace
         public ArticulationBody prop_bot_back_left;
         public ArticulationBody prop_bot_front_left;
 
-        public Propeller PropTopBackRight;
-        public Propeller PropTopFrontRight;
-        public Propeller PropTopBackLeft;
-        public Propeller PropTopFrontLeft;
-        public Propeller PropBotBackRight;
-        public Propeller PropBotFrontRight;
-        public Propeller PropBotBackLeft;
-        public Propeller PropBotFrontLeft;
-
+        public ThrusterT200 PropTopBackRight;
+        public ThrusterT200 PropTopFrontRight;
+        public ThrusterT200 PropTopBackLeft;
+        public ThrusterT200 PropTopFrontLeft;
+        public ThrusterT200 PropBotBackRight;
+        public ThrusterT200 PropBotFrontRight;
+        public ThrusterT200 PropBotBackLeft;
+        public ThrusterT200 PropBotFrontLeft;
+        private List<ThrusterT200> thrusters;
+        
+        
         // Variables
         private Camera myCamera;
         private Vector3 camera_offset;
@@ -197,15 +200,27 @@ namespace DefaultNamespace
             // NOTE: had probem with the above when adding multiple agents so went back to the bellow and seems to be working
 
             // Get all propeller components
-            PropTopBackRight = GameObject.Find("PropTopBackRight").GetComponent<Propeller>();
-            PropTopFrontRight = GameObject.Find("PropTopFrontRight").GetComponent<Propeller>();
-            PropTopBackLeft = GameObject.Find("PropTopBackLeft").GetComponent<Propeller>();
-            PropTopFrontLeft = GameObject.Find("PropTopFrontLeft").GetComponent<Propeller>();
-            PropBotBackRight = GameObject.Find("PropBotBackRight").GetComponent<Propeller>();
-            PropBotFrontRight = GameObject.Find("PropBotFrontRight").GetComponent<Propeller>();
-            PropBotBackLeft = GameObject.Find("PropBotBackLeft").GetComponent<Propeller>();
-            PropBotFrontLeft = GameObject.Find("PropBotFrontLeft").GetComponent<Propeller>();
-
+            PropTopBackRight = GameObject.Find("PropTopBackRight").GetComponent<ThrusterT200>();
+            PropTopFrontRight = GameObject.Find("PropTopFrontRight").GetComponent<ThrusterT200>();
+            PropTopBackLeft = GameObject.Find("PropTopBackLeft").GetComponent<ThrusterT200>();
+            PropTopFrontLeft = GameObject.Find("PropTopFrontLeft").GetComponent<ThrusterT200>();
+            PropBotBackRight = GameObject.Find("PropBotBackRight").GetComponent<ThrusterT200>();
+            PropBotFrontRight = GameObject.Find("PropBotFrontRight").GetComponent<ThrusterT200>();
+            PropBotBackLeft = GameObject.Find("PropBotBackLeft").GetComponent<ThrusterT200>();
+            PropBotFrontLeft = GameObject.Find("PropBotFrontLeft").GetComponent<ThrusterT200>();
+            
+            thrusters = new List<ThrusterT200>
+            {
+                PropTopBackRight,
+                PropTopFrontRight,
+                PropTopBackLeft,
+                PropTopFrontLeft,
+                PropBotBackRight,
+                PropBotFrontRight,
+                PropBotBackLeft,
+                PropBotFrontLeft
+            };
+            
             // Get all propeller articulation bodies
             prop_top_back_right = GameObject.Find("prop_top_back_right_link").GetComponent<ArticulationBody>();
             prop_top_front_right = GameObject.Find("prop_top_front_right_link").GetComponent<ArticulationBody>();
@@ -464,7 +479,7 @@ namespace DefaultNamespace
         public void SendPwmToThrusters(float[] pwms)
         {
             // pwm range: [-1.0, 1.0]
-            
+            for (int i = 0; i < thrusters.Count; i++) { thrusters[i].SetPwm(pwms[i]); }
         }
 
         private void SITL() // TODO: implement SITL

@@ -1,24 +1,14 @@
 using System;
+using Codice.Client.BaseCommands;
 using UnityEngine;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
 using Unity.Mathematics;
 
-
-/*
- * The purpose of this class is not replicate the methods in ArduSub from rcin to actuation.
- * Inspo from: https://www.mdpi.com/2076-3417/14/17/7453#FD5-applsci-14-07453
- */
-
-// Files to replicate: SIM_Submarine.cpp and AP_Motors6DOF.cpp
-namespace DefaultNamespace
+namespace DefaultNamespace.BlueROV2.SITL
 {
-    public class BrovSITL : MonoBehaviour
+    public class ArduSub
     {
-        private BrovPhysics brovPhysics;
-        
-        public bool use_ardusub = true;
-        
         private float _throttle_thrust_max = 1;
         
         int AP_MOTORS_MAX_NUM_MOTORS = 8;
@@ -26,46 +16,33 @@ namespace DefaultNamespace
         private float[] _thrust_rpyt_out_scaled;
 
         private Matrix<double> T_hat_transpose;
-        //private double[] rpt
-        
-        
-        //float rpt_out[AP_MOTORS_MAX_NUM_MOTORS]; // buffer so we don't have to multiply coefficients multiple times.
-        //loat yfl_out[AP_MOTORS_MAX_NUM_MOTORS]; // 3 linear DOF mix for each motor
-        //float rpt_max;
-        //float yfl_max;
 
         void Start()
         {
-            brovPhysics = GetComponent<BrovPhysics>();
-            
             T_hat_transpose = DenseMatrix.OfArray(new double[,]
             {
-                     {-1,  1,  0,  0,  0,  1},
-                     {-1, -1,  0,  0,  0, -1},
-                     { 1,  1,  0,  0,  0, -1},
-                     { 1, -1,  0,  0,  0,  1},
-                     { 0,  0, 1,  1, -1,  0}, // NOTE: var fel här innan från i höstas!! 
-                     { 0,  0, 1, -1, -1,  0},
-                     { 0,  0, 1,  1,  1,  0},
-                     { 0,  0, 1, -1,  1,  0}, // NOTE: var fel här innan från i höstas!! TODO: dubbel kolla
+                {-1,  1,  0,  0,  0,  1},
+                {-1, -1,  0,  0,  0, -1},
+                { 1,  1,  0,  0,  0, -1},
+                { 1, -1,  0,  0,  0,  1},
+                { 0,  0, 1,  1, -1,  0}, // NOTE: var fel här innan från i höstas!! 
+                { 0,  0, 1, -1, -1,  0},
+                { 0,  0, 1,  1,  1,  0},
+                { 0,  0, 1, -1,  1,  0}, // NOTE: var fel här innan från i höstas!! TODO: dubbel kolla
             });
-            
-            _thrust_rpyt_out = new float[AP_MOTORS_MAX_NUM_MOTORS];
-            _thrust_rpyt_out_scaled = new float[AP_MOTORS_MAX_NUM_MOTORS];
         }
         
+        public float[] SITL(float[] dofInput)
+        {
+            float[] u = RCInput(dofInput);
+            float[] mHat = MotorCommand(u);
+            float[] mPwms = RCOutput(mHat);
+
+            return mPwms;
+
+        }
         
-        public void AP_HAL_SITL()
-        {
-            
-        }
-
-        public void AP_Motors6DOF()
-        {
-            
-        }
-
-        public float[] RCInput(float[] dofInput)
+        private float[] RCInput(float[] dofInput)
         {
             // surge, sway, heave, roll, pitch, and yaw
             float[] u = new float[6];
@@ -77,8 +54,7 @@ namespace DefaultNamespace
             
             return u;
         }
-
-        public float[] MotorCommand(float[] u)
+        private float[] MotorCommand(float[] u)
         {
             int i;                                  // general purpose counter
             // TODO: double check the structure of these:
@@ -168,18 +144,15 @@ namespace DefaultNamespace
             return _thrust_rpyt_out;
         }
 
-        public void RCOutput(float[] pwms)
+        private float[] RCOutput(float[] pwms)
         {
             /*
              * [-1.0, 1.0]
              */
-            brovPhysics.SendPwmToThrusters(pwms);
+            //brovPhysics.SendPwmToThrusters(pwms);
+            // for-loop: u = 1500 + 400*_thrust_rpyt_out[i];
+            float[] u = pwms;
+            return u;
         }
-        
-        
     }
 }
-
-
-
-

@@ -24,6 +24,9 @@ public class BrovAgent : Agent
     private TeleopController teleopController;
     private GameObject map;
 
+    public bool use_sitl = true;
+    private BrovSITL brovSitl;
+
     
     // RL stuff
     // If using heuristic the forces does not need to be scaled while the rl output needs scaling
@@ -53,6 +56,7 @@ public class BrovAgent : Agent
         // Get components
         brovPhysics = GetComponentInParent<BrovPhysics>();
         teleopController = GetComponentInParent<TeleopController>();
+        brovSitl = GetComponentInParent<BrovSITL>();
         
         // Init position
         prevPos = brovPhysics.GetPosMapNED();
@@ -158,21 +162,28 @@ public class BrovAgent : Agent
          */
         ActionSegment<float> actionsSeg = actions.ContinuousActions;
         currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
-        Vector<float> actionsScaled = brovPhysics.ScaleActions(currActions);
         
-        for (int i = 0; i < actionsSeg.Length; i++)
+        // TODO: scale to [1100, 1900] from [-1.0, 1.0]
+        if (use_sitl)
         {
-            //actionsSeg[i] = actionsScaled[i];
+            float[] currActionsArray = currActions.ToArray();
+            
+            //float[] u = brovSitl.RCInput(currActionsArray);
+            float[] mHat = brovSitl.MotorCommand(currActionsArray);
+            brovSitl.RCOutput(mHat);
         }
-        //print(actionsScaled[0]);
-        inputForce  = new Vector3(actionsScaled[0], actionsScaled[1], actionsScaled[2]);
-        inputTorque = new Vector3(actionsScaled[3], actionsScaled[4], actionsScaled[5]);
-        
-        //inputForce  = new Vector3(currActions[0], currActions[1], currActions[2]);
-        //inputTorque = new Vector3(currActions[3], currActions[4], currActions[5]);
-        
-        //print(inputForce[0]);
-        brovPhysics.SetInputNED(inputForce, inputTorque);
+        else
+        {
+            Vector<float> actionsScaled = brovPhysics.ScaleActions(currActions);
+            for (int i = 0; i < actionsSeg.Length; i++)
+            {
+                //actionsSeg[i] = actionsScaled[i];
+            }
+            inputForce  = new Vector3(actionsScaled[0], actionsScaled[1], actionsScaled[2]);
+            inputTorque = new Vector3(actionsScaled[3], actionsScaled[4], actionsScaled[5]);
+
+            brovPhysics.SetInputNED(inputForce, inputTorque);    
+        }
     }
     
     public override void Heuristic(in ActionBuffers actionsOut)

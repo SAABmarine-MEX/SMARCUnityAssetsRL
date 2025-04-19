@@ -277,7 +277,7 @@ public class BrovAgent : Agent
     
     private void OnTriggerEnter(Collider other)
     {
-        //print("OnTriggerEnter");
+        print("OnTriggerEnter");
         // Try to get the CheckpointData component from the collider.
         CheckpointSingle cpData = other.GetComponent<CheckpointSingle>();
         if (cpData != null)

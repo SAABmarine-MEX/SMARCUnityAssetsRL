@@ -7,7 +7,7 @@ using Unity.Mathematics;
 
 namespace DefaultNamespace.BlueROV2.SITL
 {
-    public class ArduSub
+    public class ArduSub : MonoBehaviour
     {
         private float _throttle_thrust_max = 1;
         
@@ -16,10 +16,14 @@ namespace DefaultNamespace.BlueROV2.SITL
         private float[] _thrust_rpyt_out_scaled;
 
         private Matrix<double> T_hat_transpose;
+        private Matrix<double> T_hat_transpose2;
 
         void Start()
         {
-            T_hat_transpose = DenseMatrix.OfArray(new double[,]
+            _thrust_rpyt_out = new float[AP_MOTORS_MAX_NUM_MOTORS];
+            _thrust_rpyt_out_scaled = new float[AP_MOTORS_MAX_NUM_MOTORS];
+            
+            T_hat_transpose2 = DenseMatrix.OfArray(new double[,]
             {
                 {-1,  1,  0,  0,  0,  1},
                 {-1, -1,  0,  0,  0, -1},
@@ -30,19 +34,36 @@ namespace DefaultNamespace.BlueROV2.SITL
                 { 0,  0, 1,  1,  1,  0},
                 { 0,  0, 1, -1,  1,  0}, // NOTE: var fel här innan från i höstas!! TODO: dubbel kolla
             });
+            
+            T_hat_transpose = DenseMatrix.OfArray(new double[,] // TODO: dubbelkolla. forward, lateral, yaw, roll är fel håll. kolla matte och ardusub
+            {
+                {-1,  1,  0,  0,  0,  1},
+                {-1, -1,  0,  0,  0, -1},
+                { 1,  1,  0,  0,  0, -1},
+                { 1, -1,  0,  0,  0,  1},
+                { 0,  0, -1,  1, -1,  0},
+                { 0,  0, 1, -1, -1,  0},
+                { 0,  0, 1,  1,  1,  0},
+                { 0,  0, -1, -1,  1,  0},
+            });
         }
         
         public float[] SITL(float[] dofInput)
         {
             float[] u = RCInput(dofInput);
+            //print("SITL U:");
+            //print(u[0] + " " + u[1] + " " + u[2] + " " + u[3] + " " + u[4] + " " + u[5]);
             float[] mHat = MotorCommand(u);
+            //print("mHat: ");
+            //print(mHat[0] + ", " + mHat[1] + ", " + mHat[2] + ", " + mHat[3] + ", " + mHat[4] + ", " + mHat[5] + ", " + mHat[6] + ", " + mHat[7]);
+            
             float[] mPwms = RCOutput(mHat);
 
             return mPwms;
 
         }
         
-        private float[] RCInput(float[] dofInput)
+        public float[] RCInput(float[] dofInput)
         {
             // surge, sway, heave, roll, pitch, and yaw
             float[] u = new float[6];
@@ -57,12 +78,11 @@ namespace DefaultNamespace.BlueROV2.SITL
         private float[] MotorCommand(float[] u)
         {
             int i;                                  // general purpose counter
-            // TODO: double check the structure of these:
             // TODO: also make sure it is integrated from the ros side aswell
             float   roll_thrust     = u[0];         // roll thrust input value, +/- 1.0
             float   pitch_thrust    = u[1];         // pitch thrust input value, +/- 1.0
-            float   yaw_thrust      = u[2];         // yaw thrust input value, +/- 1.0
-            float   throttle_thrust = u[3];         // throttle thrust input value, +/- 1.0
+            float   throttle_thrust = u[2];         // throttle thrust input value, +/- 1.0
+            float   yaw_thrust      = u[3];         // yaw thrust input value, +/- 1.0
             float   forward_thrust  = u[4];         // forward thrust input value, +/- 1.0
             float   lateral_thrust  = u[5];         // lateral thrust input value, +/- 1.0
             
@@ -106,9 +126,12 @@ namespace DefaultNamespace.BlueROV2.SITL
                     //rpt_out[i] = roll_thrust * _roll_factor[i] +
                     //             pitch_thrust * _pitch_factor[i] +
                     //             throttle_thrust * _throttle_factor[i];
-                    rpt_out[i] = roll_thrust * (float) T_hat_transpose[i, 3] +
-                                 pitch_thrust * (float) T_hat_transpose[i, 4] +
-                                 throttle_thrust * (float) T_hat_transpose[i, 5];
+                    //rpt_out[i] = roll_thrust * (float) T_hat_transpose[i, 2] +
+                    //             pitch_thrust * (float) T_hat_transpose[i, 3] +
+                    //             throttle_thrust * (float) T_hat_transpose[i, 4];
+                    rpt_out[i] = throttle_thrust * (float) T_hat_transpose[i, 2] +
+                                 roll_thrust * (float) T_hat_transpose[i, 3] +
+                                 pitch_thrust * (float) T_hat_transpose[i, 4];
                     if (math.abs(rpt_out[i]) > rpt_max) {
                         rpt_max = math.abs(rpt_out[i]);
                     }
@@ -123,9 +146,9 @@ namespace DefaultNamespace.BlueROV2.SITL
                     //yfl_out[i] = yaw_thrust * _yaw_factor[i] +
                     //             forward_thrust * _forward_factor[i] +
                     //             lateral_thrust * _lateral_factor[i];
-                    yfl_out[i] = yaw_thrust * (float) T_hat_transpose[i, 1] +
-                                 forward_thrust * (float) T_hat_transpose[i, 2] +
-                                 lateral_thrust * (float) T_hat_transpose[i, 6];
+                    yfl_out[i] = forward_thrust * (float) T_hat_transpose[i, 0] +
+                                 lateral_thrust * (float) T_hat_transpose[i, 1] +
+                                 yaw_thrust * (float) T_hat_transpose[i, 5];
                     if (math.abs(yfl_out[i]) > yfl_max) {
                         yfl_max = math.abs(yfl_out[i]);
                     }
@@ -136,7 +159,8 @@ namespace DefaultNamespace.BlueROV2.SITL
             for (i=0; i<AP_MOTORS_MAX_NUM_MOTORS; i++) {
                 //if (motor_enabled[i]) { // NOTE: this is for arm function in ardusub. not implemented in this sim
                     //_thrust_rpyt_out[i] = Math.Clamp(_motor_reverse[i]*(rpt_out[i]/rpt_max + yfl_out[i]/yfl_max),-1.0f,1.0f);
-                    _thrust_rpyt_out[i] = Math.Clamp((rpt_out[i]/rpt_max + yfl_out[i]/yfl_max),-1.0f,1.0f);
+
+                    _thrust_rpyt_out[i] = Math.Clamp(rpt_out[i]/rpt_max + yfl_out[i]/yfl_max,-1.0f,1.0f);
                     _thrust_rpyt_out_scaled[i] = 1500 + 400*_thrust_rpyt_out[i];
                 //}
             }

@@ -13,21 +13,22 @@ namespace DefaultNamespace.BlueROV2.ML
 {
     public class RLController : Agent
     {
+        public BoxCollider box; // for OnTrigger to work
         public BrovDynamics dynamics;
         private GameObject map;
-        private TeleopController teleopController;
+        public TeleopController teleopController;
         
         
         // RL stuff
         
         // For gates
-        private List<Vector3> gatePositions = new List<Vector3>();
+        private List<Vector3> gatePositions = new List<Vector3>(); //TODO:
         private List<Vector3> next2Gates = new List<Vector3>() { Vector3.zero, Vector3.zero };
         private int iNextGate = 0;
         
         // For continous rewards
-        Vector<float> prevActions;
-        Vector<float> currActions;
+        Vector<float> prevActions = Vector<float>.Build.Dense(6, 0f);
+        Vector<float> currActions = Vector<float>.Build.Dense(6, 0f);
         private Vector3 prevPos;
         private Vector3 currPos;
         
@@ -35,17 +36,22 @@ namespace DefaultNamespace.BlueROV2.ML
         private float gamma = 0.99f;
         private float epsilon = 0.2f;
         private float lambda1 = 1f, lambda2 = 0.02f, lambda3 = -10f, lambda4 = -2e-4f, lambda5 = -1e-4f; // NOTE: lambda3=-10 in report
-        
-        public override void Initialize()
+
+        public void Setup(GameObject mapframe)
         {
-            if (this.dynamics == null)
+            map = mapframe;
+        }
+        void Start()
+        {
+            print("RL START");
+            if (dynamics == null)
             {
                 Debug.LogError("dynamics not set");
             }
             map = GameObject.Find("map"); // Map frame as in ros
             
             // Init position
-            prevPos = this.dynamics.GetPosNED();
+            prevPos = dynamics.GetPosNED();
             currPos = prevPos;
             
             // Get checkpoints positions
@@ -56,9 +62,9 @@ namespace DefaultNamespace.BlueROV2.ML
                 foreach (Transform child in gates.transform)
                 {
                     Vector3 localPosition = map.transform.InverseTransformPoint(child.transform.position);
-                    print("map frame: x" + localPosition.To<NED>().ToDense()[0]);
-                    print("map frame: y" + localPosition.To<NED>().ToDense()[1]);
-                    print("map frame: z" + localPosition.To<NED>().ToDense()[2]);
+                    //print("map frame: x" + localPosition.To<NED>().ToDense()[0]);
+                    //print("map frame: y" + localPosition.To<NED>().ToDense()[1]);
+                    //print("map frame: z" + localPosition.To<NED>().ToDense()[2]);
                     
                     var gatePosTemp = localPosition.To<NED>().ToDense();
                     Vector3 gatePos = new Vector3((float)gatePosTemp[0], (float)gatePosTemp[1], (float)gatePosTemp[2]);
@@ -80,14 +86,14 @@ namespace DefaultNamespace.BlueROV2.ML
             this.dynamics.SetPose(localStartPos, localStartRot);
             
             // Reset next gate positions to the first two gates TODO: only have nex gate
-            next2Gates[0] = gatePositions[0];
+            next2Gates[0] = gatePositions[0]; 
             next2Gates[1] = gatePositions[1];
             iNextGate = 0;
         }
 
         public void SetDynamics(BrovDynamics dyns)
         {
-            this.dynamics = dyns;
+            dynamics = dyns;
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -98,8 +104,8 @@ namespace DefaultNamespace.BlueROV2.ML
             */
             
             // 1. State
-            sensor.AddObservation(this.dynamics.GetQuaternionNED()); // 1x4 
-            sensor.AddObservation(this.dynamics.GetVelsNED()); // 1x6
+            sensor.AddObservation(dynamics.GetQuaternionNED()); // 1x4
+            sensor.AddObservation(dynamics.GetVelsNED()); // 1x6
             
             // 2. Relative position to next gate
             Vector3 relVec2Gate1 = next2Gates[0] - dynamics.GetPosNED();
@@ -111,8 +117,10 @@ namespace DefaultNamespace.BlueROV2.ML
 
         public override void OnActionReceived(ActionBuffers actions)
         {
+            //print("GET ACTIOOOOOONS");
             ActionSegment<float> actionsSeg = actions.ContinuousActions;
             currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
+            //print(currActions);
         }
         
         public override void Heuristic(in ActionBuffers actionsOut)
@@ -184,6 +192,7 @@ namespace DefaultNamespace.BlueROV2.ML
     
     private void OnTriggerEnter(Collider other)
     {
+        print("TRIGGER ENTER");
         CheckpointSingle cpData = other.GetComponent<CheckpointSingle>();
         if (cpData != null)
         {

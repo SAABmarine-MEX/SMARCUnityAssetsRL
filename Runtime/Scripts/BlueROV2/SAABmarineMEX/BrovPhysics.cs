@@ -315,7 +315,7 @@ namespace DefaultNamespace
             var world_rot = mainBody.transform.rotation.eulerAngles; 
             // TODO: is this world rot in NED? How to get local. Confusing that it says velocity. check definitions
             var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
-            phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
+            phi = (float) (Mathf.Deg2Rad * phiThetaTau[0]);
             theta = (float) (Mathf.Deg2Rad* phiThetaTau[1]);
             tau = (float) (Mathf.Deg2Rad* phiThetaTau[2]);
             return Vector<float>.Build.DenseOfArray(new float[] { phi, theta, tau });

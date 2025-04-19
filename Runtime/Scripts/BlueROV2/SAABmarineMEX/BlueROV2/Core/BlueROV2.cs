@@ -14,19 +14,29 @@ namespace DefaultNamespace.BlueROV2.Core
         
         public bool useArdusub = true;
         
+        private GameObject map;
+        
         void Awake()
         {
-            dynamics = GetComponent<BrovDynamics>();
+            map = GameObject.Find("map"); // map frame as in ros
+            if (map != null){ Debug.Log("map found"); }
             
-            agent = GetComponent<RLController>();
-            agent.SetDynamics(dynamics);
+            //dynamics = GetComponent<BrovDynamics>();
+            dynamics.Setup(map);
+            agent.Setup(map);
             
-            sitl = GetComponent<ArduSub>();
+            //agent = GetComponent<RLController>();
+            //agent.SetDynamics(dynamics);
+
+            //sitl = GetComponent<ArduSub>();
         }
         
         void FixedUpdate()
         {
             float[] dofControl = agent.GetScaledActions().ToArray();
+            print("DOF CONTROL");
+            print(dofControl[0] + " " + dofControl[1] + " " + dofControl[2] + " " + dofControl[3] + " " + dofControl[4] + " " + dofControl[5]);
+            
             if (useArdusub)
             {
                 float[] thrustersPwm = sitl.SITL(dofControl);
@@ -34,8 +44,8 @@ namespace DefaultNamespace.BlueROV2.Core
             }
             else
             {
-                Debug.LogWarning("NOT YET IMPLEMENTED");
-                dynamics.SimulateFromMaxTau(dofControl);
+                float[] u = sitl.RCInput(dofControl);
+                dynamics.SimulateFromMaxTau(u);
             }
         }
     }

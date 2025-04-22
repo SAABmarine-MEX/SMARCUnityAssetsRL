@@ -9,7 +9,7 @@ using DefaultNamespace.LookUpTable;
 using System.Collections.Generic;
 
 
-namespace DefaultNamespace.BlueROV2.ML
+namespace DefaultNamespace.BlueROV2.Control
 {
     public class RLController : Agent
     {

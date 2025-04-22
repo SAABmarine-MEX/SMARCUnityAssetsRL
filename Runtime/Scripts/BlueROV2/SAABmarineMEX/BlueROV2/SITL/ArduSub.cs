@@ -1,5 +1,4 @@
 using System;
-using Codice.Client.BaseCommands;
 using UnityEngine;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
@@ -17,6 +16,7 @@ namespace DefaultNamespace.BlueROV2.SITL
 
         private Matrix<double> T_hat_transpose;
         private Matrix<double> T_hat_transpose2;
+        private Matrix<double> T_hat_transpose3;
 
         void Start()
         {
@@ -24,19 +24,19 @@ namespace DefaultNamespace.BlueROV2.SITL
             _thrust_rpyt_out_scaled = new float[AP_MOTORS_MAX_NUM_MOTORS];
             
             T_hat_transpose2 = DenseMatrix.OfArray(new double[,]
-            {
+            { // from the rapport "modifications to ardusub"
                 {-1,  1,  0,  0,  0,  1},
                 {-1, -1,  0,  0,  0, -1},
                 { 1,  1,  0,  0,  0, -1},
                 { 1, -1,  0,  0,  0,  1},
-                { 0,  0, 1,  1, -1,  0}, // NOTE: var fel här innan från i höstas!! 
+                { 0,  0, 1,  1, -1,  0}, // NOTE: var fel här innan från i höstas!
                 { 0,  0, 1, -1, -1,  0},
                 { 0,  0, 1,  1,  1,  0},
-                { 0,  0, 1, -1,  1,  0}, // NOTE: var fel här innan från i höstas!! TODO: dubbel kolla
+                { 0,  0, 1, -1,  1,  0}, // NOTE: var fel här innan från i höstas!
             });
             
-            T_hat_transpose = DenseMatrix.OfArray(new double[,] // TODO: dubbelkolla. forward, lateral, yaw, roll är fel håll. kolla matte och ardusub
-            {
+            T_hat_transpose3 = DenseMatrix.OfArray(new double[,]
+            { // from unity last semester
                 {-1,  1,  0,  0,  0,  1},
                 {-1, -1,  0,  0,  0, -1},
                 { 1,  1,  0,  0,  0, -1},
@@ -46,13 +46,35 @@ namespace DefaultNamespace.BlueROV2.SITL
                 { 0,  0, 1,  1,  1,  0},
                 { 0,  0, -1, -1,  1,  0},
             });
+            
+            T_hat_transpose = DenseMatrix.OfArray(new double[,] 
+            { // from mpc last semester. NOTE: this works best, gives right directions
+                {1,  -1,  0,  0,  0,  -1},
+                {1, 1,  0,  0,  0, 1},
+                { -1,  -1,  0,  0,  0, 1},
+                { -1, 1,  0,  0,  0,  -1},
+                { 0,  0, -1,  1, 1,  0},
+                { 0,  0, 1, 1, -1,  0},
+                { 0,  0, 1,  -1,  1,  0},
+                { 0,  0, -1, -1,  -1,  0},
+            });
         }
         
         public float[] SITL(float[] dofInput)
         {
+            /*
+             * Input:
+             * dofInput - [roll, pitch, throttle (up/down), yaw, forward, lateral] (each between [1100, 1900]),
+             * ordered as in mavros OverrideRCIn msg
+             * 
+             * Output:
+             * mPwms - 8x1 motor pwms currently normilized [-1.0, 1.0]. See figure 3 for motor indexing in https://www.mdpi.com/2076-3417/14/17/7453#B16-applsci-14-07453
+             */
+            // Structure inspo from: https://www.mdpi.com/2076-3417/14/17/7453#B16-applsci-14-07453 
             float[] u = RCInput(dofInput);
             //print("SITL U:");
             //print(u[0] + " " + u[1] + " " + u[2] + " " + u[3] + " " + u[4] + " " + u[5]);
+            
             float[] mHat = MotorCommand(u);
             //print("mHat: ");
             //print(mHat[0] + ", " + mHat[1] + ", " + mHat[2] + ", " + mHat[3] + ", " + mHat[4] + ", " + mHat[5] + ", " + mHat[6] + ", " + mHat[7]);
@@ -65,7 +87,14 @@ namespace DefaultNamespace.BlueROV2.SITL
         
         public float[] RCInput(float[] dofInput)
         {
-            // surge, sway, heave, roll, pitch, and yaw
+            /*
+             * Input:
+             * dofInput - [roll, pitch, throttle (up/down), yaw, forward, lateral] (each between [1100, 1900]),
+             * ordered as in mavros OverrideRCIn msg
+             *
+             * Output:
+             * u - [roll, pitch, throttle (up/down), yaw, forward, lateral] (each between [-1.0, 1.0])
+             */
             float[] u = new float[6];
             
             for (int i = 0; i < dofInput.Length; i++) // TODO: dofInput.Length == 6
@@ -77,6 +106,18 @@ namespace DefaultNamespace.BlueROV2.SITL
         }
         private float[] MotorCommand(float[] u)
         {
+            /*
+             * Input:
+             * u - [roll, pitch, throttle (up/down), yaw, forward, lateral] (each between [-1.0, 1.0])
+             *
+             * Process:
+             * Replicated ardusub's process to go from 6 dof control to 8 motor pwms.
+             * Inspired by its code: https://github.com/ArduPilot/ardupilot/blob/master/libraries/AP_Motors/AP_Motors6DOF.cpp
+             * AP_Motors6DOF::output_armed_stabilizing_vectored_6dof
+             * 
+             * Output:
+             * _thrust_rpyt_out - 8x1 motor pwms currently normilized [-1.0, 1.0]
+             */
             int i;                                  // general purpose counter
             // TODO: also make sure it is integrated from the ros side aswell
             float   roll_thrust     = u[0];         // roll thrust input value, +/- 1.0
@@ -85,16 +126,6 @@ namespace DefaultNamespace.BlueROV2.SITL
             float   yaw_thrust      = u[3];         // yaw thrust input value, +/- 1.0
             float   forward_thrust  = u[4];         // forward thrust input value, +/- 1.0
             float   lateral_thrust  = u[5];         // lateral thrust input value, +/- 1.0
-            
-            // Get rcin
-            /*
-            roll_thrust = (_roll_in + _roll_in_ff);
-            pitch_thrust = (_pitch_in + _pitch_in_ff);
-            yaw_thrust = (_yaw_in + _yaw_in_ff);
-            throttle_thrust = get_throttle_bidirectional();
-            forward_thrust = _forward_in;
-            lateral_thrust = _lateral_in;
-            */
             
             float[] rpt_out = new float[AP_MOTORS_MAX_NUM_MOTORS]; // buffer so we don't have to multiply coefficients multiple times.
             float[] yfl_out = new float[AP_MOTORS_MAX_NUM_MOTORS]; // 3 linear DOF mix for each motor
@@ -109,6 +140,7 @@ namespace DefaultNamespace.BlueROV2.SITL
             bool limit_throttle_upper = false;
             
             // sanity check throttle is above zero and below current limited throttle
+            // NOTE: not used currently as in ardusub, so could prob be removed so simplify
             if (throttle_thrust <= -_throttle_thrust_max) {
                 throttle_thrust = -_throttle_thrust_max;
                 limit_throttle_lower = true;
@@ -161,10 +193,9 @@ namespace DefaultNamespace.BlueROV2.SITL
                     //_thrust_rpyt_out[i] = Math.Clamp(_motor_reverse[i]*(rpt_out[i]/rpt_max + yfl_out[i]/yfl_max),-1.0f,1.0f);
 
                     _thrust_rpyt_out[i] = Math.Clamp(rpt_out[i]/rpt_max + yfl_out[i]/yfl_max,-1.0f,1.0f);
-                    _thrust_rpyt_out_scaled[i] = 1500 + 400*_thrust_rpyt_out[i];
+                    //_thrust_rpyt_out_scaled[i] = 1500 + 400*_thrust_rpyt_out[i];
                 //}
             }
-
             return _thrust_rpyt_out;
         }
 
@@ -173,7 +204,8 @@ namespace DefaultNamespace.BlueROV2.SITL
             /*
              * [-1.0, 1.0]
              */
-            //brovPhysics.SendPwmToThrusters(pwms);
+            // Currently not scaled because pwm to force thruster function is normilazed and not scaled to [1100, 1900]
+            // But in ardusub the pwms are scaled here
             // for-loop: u = 1500 + 400*_thrust_rpyt_out[i];
             float[] u = pwms;
             return u;

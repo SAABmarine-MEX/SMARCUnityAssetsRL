@@ -1,35 +1,42 @@
 using UnityEngine;
+using MathNet.Numerics.LinearAlgebra;
 using DefaultNamespace.BlueROV2.Control;
 using DefaultNamespace.BlueROV2.Physics;
 using DefaultNamespace.BlueROV2.SITL;
 
-
 namespace DefaultNamespace.BlueROV2.Core
 {
-    public class BlueROV2 : MonoBehaviour
+    public class BlueROV2Residual : MonoBehaviour
     {
         // The three building blocks for the BlueROV2
         public BrovDynamics dynamics;
         public ArduSub sitl;
-        public RLController agent;
-        
-        // Bool to declare if to use ArduSub sitl or to use scaled max tau control 
-        public bool useArdusub = true;
+        public ResidualControl agent;
+         
+        public bool useArdusub = true; // Bool to declare if to use ArduSub sitl or to use scaled max tau control
+        public bool isReal = false; //
         
         // map frame. To replicate standard ros map frame
         private GameObject map;
         
         float[] bodyTau = new float[] { 0, 0, 0, 0, 0, 0 };
         
+        
         void Awake()
         {
-            map = GameObject.Find("map");
+            map = GameObject.Find("map"); // map frame as in ros
             if (map != null){ Debug.Log("map found"); }
             
             // These are now set directly from the scene
             //dynamics = GetComponent<BrovDynamics>();
             //agent = GetComponent<RLController>();
             //sitl = GetComponent<ArduSub>();
+
+            if (isReal)
+            {
+                // If real, then change the dynamics of this so that the prior scene then will do the residual modeling to match real
+                // dynamics.Xuu = 142
+            }
             
             // Both dynamics and agent needs awareness of the map frame
             dynamics.Setup(map);
@@ -51,6 +58,12 @@ namespace DefaultNamespace.BlueROV2.Core
             {
                 float[] u = sitl.RCInput(dofControl);
                 bodyTau = dynamics.SimulateFromMaxTau(u);
+            }
+            
+            // If isReal, meaning trying to simulate a "real" enviornment that differ from prior
+            if (isReal)
+            {
+                for (int i = 0; i < bodyTau.Length; i++) { bodyTau[i] *= 1.5f; }
             }
             
             // Apply generated tau to body

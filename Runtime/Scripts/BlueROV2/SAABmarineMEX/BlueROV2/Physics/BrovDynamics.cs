@@ -327,6 +327,12 @@ namespace DefaultNamespace.BlueROV2.Physics
             tauAddedInertia = M_A * vel_vec_dot;
         }
         
+        public void SetInputTauNED(float[] bodyTau)
+        {
+            inputForce = new Vector3(bodyTau[0], bodyTau[1], bodyTau[2]);
+            inputTorque = new Vector3(bodyTau[3], bodyTau[4], bodyTau[5]);
+        }
+        
         private Matrix<double> CalculateCMatrix(float u, float v, float w, float p, float q, float r)
         {
             // Coriollis and centripetal matrices
@@ -382,7 +388,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             }
         }
 
-        public void SimulateFromThrusters(float[] mPwms)
+        public float[] SimulateFromThrusters(float[] mPwms)
         {
             // Get thruster forces
             double[] thrusterForces = new double[thrusters.Count];
@@ -395,18 +401,30 @@ namespace DefaultNamespace.BlueROV2.Physics
             // Convert to input tau acting on body
             var bodyTau = T * forceVector;
             //inputForce = bodyTau.SubVector(0, 3);   // First 3 elements: indices 0,1,2
-            inputForce = new Vector3((float) bodyTau[0], (float) bodyTau[1], (float) bodyTau[2]);
+            Vector3 inputForce2 = new Vector3((float) bodyTau[0], (float) bodyTau[1], (float) bodyTau[2]);
+            float[] bodyTauFloat = new float[]
+            {
+                (float) bodyTau[0],
+                (float) bodyTau[1],
+                (float) bodyTau[2],
+                (float) bodyTau[3],
+                (float) bodyTau[4],
+                (float) bodyTau[5],
+            };
             //inputTorque = bodyTau.SubVector(3, 3);  // Last 3 elements: indices 3,4,5
-            inputTorque = new Vector3((float) bodyTau[3], (float) bodyTau[4], (float) bodyTau[5]);
+            Vector3 inputTorque2 = new Vector3((float) bodyTau[3], (float) bodyTau[4], (float) bodyTau[5]);
+            return bodyTauFloat;
         }
 
-        public void SimulateFromMaxTau(float[] dofPwms)
+        public float[] SimulateFromMaxTau(float[] dofPwms)
         {
             Vector<float> dofTau = ScaleActions(dofPwms);
             print("dof minmax: ");
             print(dofTau[0] + " " + dofTau[1] + " " + dofTau[2] + " " + dofTau[3] + ", " + dofTau[4] + ", " + dofTau[5]);
-            inputForce  = new Vector3(dofTau[0], dofTau[1], dofTau[2]);
-            inputTorque = new Vector3(dofTau[3], dofTau[4], dofTau[5]);
+            Vector3 inputForce2  = new Vector3(dofTau[0], dofTau[1], dofTau[2]);
+            Vector3 inputTorque2 = new Vector3(dofTau[3], dofTau[4], dofTau[5]);
+            
+            return dofTau.ToArray();
         }
         public Vector<float> ScaleActions(float[] actionsNorm)
         {
@@ -488,51 +506,30 @@ namespace DefaultNamespace.BlueROV2.Physics
         
         public Vector<float> GetVelsNED()
         {
-            /*
-            // Get linear and angular velocities
-            Vector<double> linVels = GetLinVelsNED(); // Assuming this returns Vector<float>
-            Vector<double> angVels = GetAngVelsNED(); // Assuming this returns Vector<float>
-            // Create a new array large enough to hold both linear and angular velocities
-            float[] combinedArray = new float[linVels.Count + angVels.Count];
-
-            // Copy linear velocities into the combined array using Array.Copy
-            System.Array.Copy(linVels.ToArray(), 0, combinedArray, 0, linVels.Count);
-
-            // Copy angular velocities into the combined array starting after linear velocities
-            System.Array.Copy(angVels.ToArray(), 0, combinedArray, linVels.Count, angVels.Count);
-
-            // Create a new Vector from the combined array
-            Vector<float> stateVels = Vector<float>.Build.DenseOfArray(combinedArray);
-            return stateVels;
-            */
-            Vector<double> linVels = GetLinVelsNED(); // Assuming this returns Vector<float>
-            Vector<double> angVels = GetAngVelsNED(); // Assuming this returns Vector<float>
-            // Convert linVels and angVels from Vector<double> to float[]
-            float[] linVelsF = linVels.Select(v => (float)v).ToArray();
-            float[] angVelsF = angVels.Select(v => (float)v).ToArray();
-
-// Combine into one array
-            float[] combinedArray = new float[linVelsF.Length + angVelsF.Length];
-            System.Array.Copy(linVelsF, 0, combinedArray, 0, linVelsF.Length);
-            System.Array.Copy(angVelsF, 0, combinedArray, linVelsF.Length, angVelsF.Length);
-
-// Build the final vector
-            Vector<float> stateVels = Vector<float>.Build.DenseOfArray(combinedArray);
+            Vector3 linVels = GetLinVelsNED();
+            Vector3 angVels = GetAngVelsNED();
+            
+            Vector<float> stateVels = Vector<float>.Build.DenseOfArray(new float[]
+            {
+                linVels.x, linVels.y, linVels.z, 
+                angVels.x, angVels.y, angVels.z,
+            });
+            
             return stateVels;
         }
         
         // Velocities
-        public Vector<double> GetLinVelsNED()
+        public Vector3 GetLinVelsNED()
         {
             var inverseTransformDirection = mainBody.transform.InverseTransformDirection(mainBody.linearVelocity); // Local frame vel
             var uvw = inverseTransformDirection.To<NED>().ToDense();
             float u = (float) uvw[0];
             float v = (float) uvw[1];
             float w = (float) uvw[2];
-            return Vector<double>.Build.DenseOfArray(new double[] { u, v, w });
+            return new Vector3(u, v, w);
         }
 
-        public Vector<double> GetAngVelsNED()
+        public Vector3 GetAngVelsNED()
         {
             var transformAngularVelocity = mainBody.transform.InverseTransformDirection(mainBody.angularVelocity); // Local frame angular vel (gives negative velocities)
             // Convert angles, angular velocities and velocities to OSBS coordinate system
@@ -540,7 +537,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             float p = (float) pqr[0];
             float q = (float) pqr[1];
             float r = (float) pqr[2];
-            return Vector<double>.Build.DenseOfArray(new double[] { p, q, r });
+            return new Vector3(p, q, r);
         }
 
         

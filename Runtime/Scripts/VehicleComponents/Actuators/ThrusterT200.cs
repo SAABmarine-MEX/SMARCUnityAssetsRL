@@ -46,10 +46,10 @@ namespace VehicleComponents.Actuators
             this.pwm = Mathf.Clamp((float)pwm, -PWMMax, PWMMax);
         }
 
-        private double PwmToForce()
+        public double PwmToForce(double pwm)
         {
             // This one is nomrilizaed [-1, 1]
-            double force = -140.3*math.pow(this.pwm,9)+389.9*math.pow(this.pwm,7)-404.1*math.pow(this.pwm,5)+176.0*math.pow(this.pwm,3)+8.9*this.pwm;
+            double force = -140.3*math.pow(pwm,9)+389.9*math.pow(pwm,7)-404.1*math.pow(this.pwm,5)+176.0*math.pow(this.pwm,3)+8.9*this.pwm;
             return force;
         }
         void Start()
@@ -65,9 +65,9 @@ namespace VehicleComponents.Actuators
 
             // Visualize the applied force
             
-            parentMixedBody.AddForceAtPosition((float) PwmToForce() * parentMixedBody.transform.forward,
-                                                   parentMixedBody.transform.position,
-                                                   ForceMode.Force);
+            //parentMixedBody.AddForceAtPosition((float) PwmToForce() * parentMixedBody.transform.forward,
+              //                                     parentMixedBody.transform.position,
+                //                                   ForceMode.Force);
             
             // Dont spin the props (which lets physics handle the torques and such) if we are applying manual
             // torque. This is useful for drones or vehicles where numerical things are known

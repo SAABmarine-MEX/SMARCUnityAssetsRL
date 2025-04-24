@@ -55,17 +55,8 @@ namespace DefaultNamespace.BlueROV2.Control
             
             // State
             sensor.AddObservation(dynamics.GetPosNED());        // Position,    1x3
-            //print("POS:");
-            //var pos = dynamics.GetPosNED();
-            //print(pos.x + "," + pos.y + "," + pos.z);
             sensor.AddObservation(dynamics.GetQuaternionNED()); // Orientation, 1x4
-            //var q = dynamics.GetQuaternionNED();
-            //print("QUATERNIONS:");
-            //print(q.x + "," + q.y + "," + q.z + "," + q.w);
             sensor.AddObservation(dynamics.GetVelsNED());       // Velocities,  1x6
-            var vels = dynamics.GetVelsNED();
-            //print("VELS:");
-            //print(vels[3] + "       " + "       "+ vels[4] + "      "  + vels[5]);
         }
 
         public override void OnActionReceived(ActionBuffers actions)

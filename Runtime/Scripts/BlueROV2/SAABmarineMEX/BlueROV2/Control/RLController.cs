@@ -7,6 +7,7 @@ using UnityEngine;
 using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 using DefaultNamespace.LookUpTable;
 using System.Collections.Generic;
+using System;
 
 
 namespace DefaultNamespace.BlueROV2.Control
@@ -20,7 +21,6 @@ namespace DefaultNamespace.BlueROV2.Control
         
         
         // RL stuff
-        
         // For gates
         private List<Vector3> gatePositions = new List<Vector3>(); //TODO:
         private List<Vector3> next2Gates = new List<Vector3>() { Vector3.zero, Vector3.zero };
@@ -36,6 +36,13 @@ namespace DefaultNamespace.BlueROV2.Control
         private float gamma = 0.99f;
         private float epsilon = 0.2f;
         private float lambda1 = 1f, lambda2 = 0.02f, lambda3 = -10f, lambda4 = -2e-4f, lambda5 = -1e-4f; // NOTE: lambda3=-10 in report
+        
+        // Control input variables
+        private Quaternion qInput;
+        private Vector<float> velsInput;
+        private Vector3 relVecToGateInput;
+        // prevActions also used as control input but declared above
+        
 
         public void Setup(GameObject mapframe)
         {
@@ -56,6 +63,7 @@ namespace DefaultNamespace.BlueROV2.Control
             
             // Get checkpoints positions
             GameObject gates = GameObject.Find("Checkpoints");
+            print("Gates:");
             if (gates != null)
             {
                 // Assumption: Gates are sorted in the desired track order in the Unity scene, i.e. first child is first gate etc.
@@ -69,6 +77,7 @@ namespace DefaultNamespace.BlueROV2.Control
                     var gatePosTemp = localPosition.To<NED>().ToDense();
                     Vector3 gatePos = new Vector3((float)gatePosTemp[0], (float)gatePosTemp[1], (float)gatePosTemp[2]);
                     gatePositions.Add(gatePos);
+                    print(gatePos[0] + "    " + gatePos[1]  + "    " + gatePos[2]);
                 }
             }
             else
@@ -79,16 +88,28 @@ namespace DefaultNamespace.BlueROV2.Control
 
         public override void OnEpisodeBegin()
         {
+            dynamics.SetInputTauNED(new float[] {0f, 0f, 0f, 0f, 0f, 0f});
+            dynamics.SetZeroVels();
             // Reset the Brov to its starting position TODO: later, make the starting position more random
-            Vector3 localStartPos = new Vector3(0.0f, -0.1f, 0.6f); // TODO: make it relative to the same origin as it will be irl
-            Quaternion localStartRot = Quaternion.Euler(0, 0, 0);
-            this.dynamics.SetZeroVels();
-            this.dynamics.SetPose(localStartPos, localStartRot);
+            Vector3 localStartPos = new Vector3(-1.3f, -2.0f, 1.0f); // TODO: make it relative to the same origin as it will be irl
+            Quaternion localStartRot = Quaternion.Euler(0f, 0f, 0f); // TODO: would like this to be relative map
+            dynamics.SetPose(localStartPos, localStartRot);
             
             // Reset next gate positions to the first two gates TODO: only have nex gate
-            next2Gates[0] = gatePositions[0]; 
+            next2Gates[0] = gatePositions[0];
             next2Gates[1] = gatePositions[1];
             iNextGate = 0;
+            
+            
+            // Init control input variables
+            // 1. State
+            qInput = dynamics.GetQuaternionNED(); // 1x4
+            velsInput = dynamics.GetVelsNED(); // 1x6
+            
+            // 2. Relative position to next gate
+            relVecToGateInput = next2Gates[0] - dynamics.GetPosNED();
+            
+            // 3. Previous action, is already initilized
         }
 
         public void SetDynamics(BrovDynamics dyns)
@@ -102,29 +123,62 @@ namespace DefaultNamespace.BlueROV2.Control
             * This method adds observations to the sensor of the agent. 
             * The observations are used as input to the neural network.
             */
-            
             // 1. State
-            sensor.AddObservation(dynamics.GetQuaternionNED()); // 1x4
-            sensor.AddObservation(dynamics.GetVelsNED()); // 1x6
+            qInput = dynamics.GetQuaternionNED(); // 1x4
+            velsInput = dynamics.GetVelsNED(); // 1x6
+            sensor.AddObservation(qInput); 
+            sensor.AddObservation(velsInput);
             
             // 2. Relative position to next gate
-            Vector3 relVec2Gate1 = next2Gates[0] - dynamics.GetPosNED();
-            sensor.AddObservation(relVec2Gate1); // 1x3
+            relVecToGateInput = next2Gates[0] - dynamics.GetPosNED(); // 1x3
+            sensor.AddObservation(relVecToGateInput); 
             
             // 3. Previous action
             sensor.AddObservation(prevActions);
+        }
+        
+        // Methods used for ros
+        public List<float> GetControlInput()
+        {
+            /*
+             * This method returns the input to the neural network model.
+             * Simply returning the observations from the CollectObservations method.
+             */
+            List<float> modelInput = new List<float>();
+
+            // 1. State
+            List<float> quaternionList = new List<float> { qInput.x, qInput.y, qInput.z, qInput.w };
+            modelInput.AddRange(quaternionList);
+            modelInput.AddRange(velsInput);
+
+            // 2. Relative position to next gate
+            // TODO: make next2gates into float array so this code can be simplified
+            float[] floatArray2 = { relVecToGateInput.x, relVecToGateInput.y, relVecToGateInput.z };
+            modelInput.AddRange(floatArray2);
+
+            // 3. Previous action
+            modelInput.AddRange(prevActions);
+            
+            return modelInput;
         }
 
         public override void OnActionReceived(ActionBuffers actions)
         {
             //print("GET ACTIOOOOOONS");
             ActionSegment<float> actionsSeg = actions.ContinuousActions;
-            currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
+            currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]*0.5f); // scale down
             //print(currActions);
+            
+            ContinousRewards();
+            
+            prevPos = currPos;
+            prevActions = currActions;
         }
         
         public override void Heuristic(in ActionBuffers actionsOut)
         {
+            // NOTE: When running inference from ros, set Behavior type to Inference only in the Behavior Parameters component
+            // so this Heuristic doesn't interfere. Could probably solve it in a smart more dynamic way but works for now
             ActionSegment<float> continuousActions = actionsOut.ContinuousActions;
             Vector<float> teleopInput = teleopController.GetTeleopInput();
             for (int i = 0; i < continuousActions.Length; i++)
@@ -138,7 +192,7 @@ namespace DefaultNamespace.BlueROV2.Control
             for (int i = 0; i < actions.Count; i++)
             {
                 // Scale from [-1, 1] to [1100, 1900]
-                scaledActions[i] = ((actions[i] + 1f) * 0.5f) * (1900f - 1100f) + 1100f;
+                scaledActions[i] = (actions[i] + 1f) * 0.5f * (1900f - 1100f) + 1100f;
             }
             return scaledActions;
         }
@@ -146,6 +200,18 @@ namespace DefaultNamespace.BlueROV2.Control
         public Vector<float> GetScaledActions()
         {
             return ScaleActions(currActions);
+        }
+
+        private float ComputeReward()
+        {
+            // We manually ensure the rewards never exceed the -1 : 1 range during an episode.
+            // This is for stability in the neural networks.
+            // We dont use normalization in the network inputs, and do it manually ourselves.
+            // Doing it ourselves, we dont have to "learn" what the possible range of values is.
+            // IF you do this manually, make sure to turn off normalization in the learning config file.
+
+            // Progression reward
+            Math.Clamp((maxDistance - current) / maxDistance, 0, 1);
         }
         
         private void ContinousRewards()
@@ -173,26 +239,24 @@ namespace DefaultNamespace.BlueROV2.Control
             float magnitude = Mathf.Pow(actionDiffNorm, 2);
             float r_cmd = lambda5*magnitude;
             //print("CMD REWARD: " + magnitude);
-
-            float r_tak = 0f;
+            
             if (dynamics.GetHeight() >= 0)
             {
                 //Debug.LogError("AAAAJ TAK");
-                r_tak = -5.0f;
+                AddReward(-5.0f);
+                EndEpisode();
+                
             }
 		
         // Sum tot reward
-        float r_t = r_prog + r_perc + r_cmd + r_tak;        
+        float r_t = r_prog + r_perc + r_cmd;        
 		AddReward(r_t);
         //print("TOT REWARD: " + r_t);
-        
-        prevPos = currPos;
-        prevActions = currActions;
     }
     
     private void OnTriggerEnter(Collider other)
     {
-        print("TRIGGER ENTER");
+        //print("TRIGGER ENTER");
         CheckpointSingle cpData = other.GetComponent<CheckpointSingle>();
         if (cpData != null)
         {
@@ -206,7 +270,7 @@ namespace DefaultNamespace.BlueROV2.Control
             }else{
                 // TODO: fix so that it doesnt give this multiple times when passing through
                 // Wrong order!
-                Debug.Log("FEL ORDNING");
+                //Debug.Log("FEL ORDNING");
                 //AddReward(-1f); // TODO: den vart bättre med denna men eftersom den är skum så borde det inte bli så??
             }
         }
@@ -217,10 +281,6 @@ namespace DefaultNamespace.BlueROV2.Control
             EndEpisode();
         }
     }
-    
-    void FixedUpdate()
-    {
-        ContinousRewards();
-    }
+
     }
 }

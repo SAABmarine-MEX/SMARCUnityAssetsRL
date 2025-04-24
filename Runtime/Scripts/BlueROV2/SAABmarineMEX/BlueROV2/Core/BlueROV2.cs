@@ -6,20 +6,23 @@ using DefaultNamespace.BlueROV2.SITL;
 
 namespace DefaultNamespace.BlueROV2.Core
 {
-    public class BlueROV2 : MonoBehaviour
+    public class Brov : MonoBehaviour
     {
         // The three building blocks for the BlueROV2
         public BrovDynamics dynamics;
         public ArduSub sitl;
-        public RLController agent;
+        public RLController agent; // Agent is only for training, not ros rl inference
         
-        // Bool to declare if to use ArduSub sitl or to use scaled max tau control 
-        public bool useArdusub = true;
+        public bool useArdusub = true; // Bool to declare if to use ArduSub sitl or to use scaled max tau control
+        public bool useRLTraining = true;
         
         // map frame. To replicate standard ros map frame
         private GameObject map;
         
+        float[] dofControl = new float[] { 0, 0, 0, 0, 0, 0 };
+        
         float[] bodyTau = new float[] { 0, 0, 0, 0, 0, 0 };
+        
         
         void Awake()
         {
@@ -35,11 +38,21 @@ namespace DefaultNamespace.BlueROV2.Core
             dynamics.Setup(map);
             agent.Setup(map);
         }
+
+        public void SetDofControl(float[] recievedDofControl) // Used like a interrupted by ros
+        {
+            dofControl = recievedDofControl;
+        }
         
         void FixedUpdate()
         {
             // Get control output
-            float[] dofControl = agent.GetScaledActions().ToArray();
+            
+            if (useRLTraining)
+            {
+                dofControl = agent.GetScaledActions().ToArray();
+                
+            }
             
             // Apply control output depending if want to use ardusub sitl or not
             if (useArdusub)

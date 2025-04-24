@@ -8,7 +8,7 @@ namespace VehicleComponents
 {
     public class LinkAttachment : MonoBehaviour
     {
-        [Header("Link attachment")] 
+        [Header("Link attachment")]
         [Tooltip("The name of the link the sensor should be attached to.")]
         public string linkName = "";
 

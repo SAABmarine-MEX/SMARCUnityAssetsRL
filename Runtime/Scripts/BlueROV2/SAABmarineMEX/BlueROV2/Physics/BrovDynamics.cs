@@ -263,6 +263,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             addedTorque     = FRD.ConvertAngularVelocityToRUF(addedTorque);
             
             // Add forces and torques to rigid body
+            
             mainBody.AddRelativeForce(-dampingForce);
             mainBody.AddRelativeForce(-coriolisForce);
             mainBody.AddRelativeForce(-restoringForce);
@@ -273,6 +274,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             mainBody.AddRelativeTorque(-restoringTorque);
             mainBody.AddRelativeTorque(-addedTorque);
             mainBody.AddRelativeTorque(inputTorque);
+            
             
             // Reset input forces every fixed update
             inputForce = Vector3.zero;
@@ -472,7 +474,7 @@ namespace DefaultNamespace.BlueROV2.Physics
         {
             Vector3 localRotation = map.transform.InverseTransformPoint(mainBody.transform.rotation.eulerAngles);
             var phiThetaPsi = localRotation.To<NED>().ToDense();
-            
+            //print("Mathf.Deg2Rad:       " + Mathf.Deg2Rad);
             // TODO: double check this that this is what mr fossen wants
             float phi = (float) (Mathf.Deg2Rad * phiThetaPsi[0]); 
             float theta = (float) (Mathf.Deg2Rad * phiThetaPsi[1]);
@@ -486,7 +488,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             var world_rot = mainBody.transform.rotation.eulerAngles; 
             // TODO: is this world rot in NED? How to get local. Confusing that it says velocity. check definitions
             var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
-            float phi   = (float) (Mathf.Deg2Rad * phiThetaTau[0]); 
+            float phi   = (float) (Mathf.Deg2Rad * phiThetaTau[0]);
             float theta = (float) (Mathf.Deg2Rad * phiThetaTau[1]);
             float psi   = (float) (Mathf.Deg2Rad * phiThetaTau[2]);
             return Vector<double>.Build.DenseOfArray(new double[] { phi, theta, psi });
@@ -494,10 +496,13 @@ namespace DefaultNamespace.BlueROV2.Physics
         
         public Quaternion GetQuaternionNED()
         {
-            // TODO: test
             // Get orientation in Unity's ENU frame
             //Quaternion q_enu_local = map.transform.InverseTransformPoint(mainBody.transform.rotation);
             Quaternion localRotation = Quaternion.Inverse(map.transform.rotation) * mainBody.transform.rotation;
+            Quaternion<NED> rotationNed = localRotation.To<NED>();            
+            //Vector3 euler = rotationNed.eulerAngles;
+            //print("EUERERL");
+            //print(euler.x + "   " + euler.y + "     " + euler.z);
             // Convert quaternion from ENU to NED
             //Quaternion q_ned_local = conversionQuaternion * q_enu * Quaternion.Inverse(conversionQuaternion);
 

@@ -14,12 +14,13 @@ namespace DefaultNamespace.BlueROV2.Core
         public RLController agent; // Agent is only for training, not ros rl inference
         
         public bool useArdusub = true; // Bool to declare if to use ArduSub sitl or to use scaled max tau control
-        public bool useRLTraining = true;
+        private bool useRLTraining = true; // TODO: make script override public varibles set in scene
+        // TODO: problem with running inference from ros
         
         // map frame. To replicate standard ros map frame
         private GameObject map;
         
-        float[] dofControl = new float[] { 0, 0, 0, 0, 0, 0 };
+        float[] dofControl = new float[] { 1500, 1500, 1500, 1500, 1500, 1500 };
         
         float[] bodyTau = new float[] { 0, 0, 0, 0, 0, 0 };
         
@@ -41,6 +42,8 @@ namespace DefaultNamespace.BlueROV2.Core
 
         public void SetDofControl(float[] recievedDofControl) // Used like a interrupted by ros
         {
+            //print("brov side received dof control-------------");
+            //print(recievedDofControl[0] + "     " + recievedDofControl[1] + "     " + recievedDofControl[2]);
             dofControl = recievedDofControl;
         }
         
@@ -53,7 +56,7 @@ namespace DefaultNamespace.BlueROV2.Core
                 dofControl = agent.GetScaledActions().ToArray();
                 
             }
-            
+            //print(dofControl[0]);
             // Apply control output depending if want to use ardusub sitl or not
             if (useArdusub)
             {

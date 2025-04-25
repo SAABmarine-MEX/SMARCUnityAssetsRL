@@ -14,7 +14,6 @@ namespace DefaultNamespace.BlueROV2.Control
 {
     public class RLController : Agent
     {
-        public BoxCollider box; // for OnTrigger to work
         public BrovDynamics dynamics;
         private GameObject map;
         public TeleopController teleopController;
@@ -31,6 +30,8 @@ namespace DefaultNamespace.BlueROV2.Control
         Vector<float> currActions = Vector<float>.Build.Dense(6, 0f);
         private Vector3 prevPos;
         private Vector3 currPos;
+
+        private float maxDistance = 5f;
         
         // RL training parameters
         private float gamma = 0.99f;
@@ -126,7 +127,7 @@ namespace DefaultNamespace.BlueROV2.Control
             // 1. State
             qInput = dynamics.GetQuaternionNED(); // 1x4
             velsInput = dynamics.GetVelsNED(); // 1x6
-            sensor.AddObservation(qInput); 
+            sensor.AddObservation(qInput);
             sensor.AddObservation(velsInput);
             
             // 2. Relative position to next gate
@@ -169,6 +170,19 @@ namespace DefaultNamespace.BlueROV2.Control
             currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]*0.5f); // scale down
             //print(currActions);
             
+            /*
+            var reward = ComputeReward();
+            //print("REWARD:");
+            //print(reward);
+            if (float.IsNaN(reward))
+            {
+                Debug.Log("Warning! Reward NaN! Something went wrong!");
+            }
+            else
+            {
+                // Debug.Log(GetCumulativeReward()); //NB! NEVER LEAVE CONSTANT DEBUG MESSAGES ENABLED, It causes massive slowdowns
+                AddReward(reward);
+            }*/
             ContinousRewards();
             
             prevPos = currPos;
@@ -204,16 +218,48 @@ namespace DefaultNamespace.BlueROV2.Control
 
         private float ComputeReward()
         {
+            // Inspo: https://github.com/martkartasev/SMARC-RL/blob/master/Assets/Scripts/SAMGeneralMovementLearningAgent.cs
             // We manually ensure the rewards never exceed the -1 : 1 range during an episode.
             // This is for stability in the neural networks.
             // We dont use normalization in the network inputs, and do it manually ourselves.
             // Doing it ourselves, we dont have to "learn" what the possible range of values is.
             // IF you do this manually, make sure to turn off normalization in the learning config file.
 
-            // Progression reward
-            Math.Clamp((maxDistance - current) / maxDistance, 0, 1);
+            // Distance to gate reward
+            currPos = dynamics.GetPosNED();
+            float currentDistToGate = Vector3.Distance(next2Gates[0], currPos);
+            float clamped = Math.Clamp((maxDistance - currentDistToGate) / maxDistance, 0, 1);
+            //print("claeemd: " + clamped);
+            var reward = clamped;// / MaxStep * 0.8f; TODO: MaxStep is set in the scene for this script. Default 0 so will get error if used as default. ask mart what he has
+            //print("max step *0.8: " + reward);
+            //print(MaxStep);
+            
+            // TODO: should we implement target speed?
+            
+            // Facing gate / allign with target reward
+            // Currently unused "align with target" reward. Currently insufficient observation for this, cant enable TODO: ask mart about this
+            // reward += 0.xf * ((Vector3.Dot(targetObject.forward, body.transform.forward) + 1) * 0.5f); 
+            
+            // Time penalty
+            reward += -0.5f; // / MaxStep;
+            
+            // Smooth actions reward
+            //Vector<float> actionDiff = currActions - prevActions;
+            //float actionDiffNorm = (float) actionDiff.L2Norm();
+            
+            return reward;
         }
-        
+
+        private void FixedUpdate()
+        {
+            if (dynamics.GetHeight() >= 0)
+            {
+                //Debug.LogError("AAAAJ TAK");
+                AddReward(-1.0f);
+                EndEpisode();
+            }
+        }
+
         private void ContinousRewards()
         {
             // r_progression
@@ -239,14 +285,14 @@ namespace DefaultNamespace.BlueROV2.Control
             float magnitude = Mathf.Pow(actionDiffNorm, 2);
             float r_cmd = lambda5*magnitude;
             //print("CMD REWARD: " + magnitude);
-            
+            /*
             if (dynamics.GetHeight() >= 0)
             {
                 //Debug.LogError("AAAAJ TAK");
                 AddReward(-5.0f);
                 EndEpisode();
                 
-            }
+            }*/
 		
         // Sum tot reward
         float r_t = r_prog + r_perc + r_cmd;        
@@ -262,11 +308,12 @@ namespace DefaultNamespace.BlueROV2.Control
         {
             if (cpData.checkpointIndex == iNextGate)
             {
-                Debug.Log("RÄTT ORDNING");
-                AddReward(5f);
-                iNextGate = (iNextGate + 1) % gatePositions.Count; 				
-                next2Gates[0] = next2Gates[1];
+                AddReward(5f); 
+                iNextGate = (iNextGate + 1) % gatePositions.Count;
+                //print("next gate index: " + iNextGate);
                 next2Gates[1] = gatePositions[iNextGate]; 
+                next2Gates[0] = next2Gates[1];
+                //Debug.Log("next gate: " + next2Gates[0]);
             }else{
                 // TODO: fix so that it doesnt give this multiple times when passing through
                 // Wrong order!

@@ -51,7 +51,8 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
             float[] dofControl = new float[6];
             // With this way, it could practically take the whole overridercin msg eventhough everything above index 5 is useless
             for (int i = 0; i < dofControl.Length; i++) { dofControl[i] = (float) msg.data[i]; }
-            
+            print("DOF CONTROLS RECIEVED");
+            print(dofControl[0] + "     " + dofControl[1] + "     " + dofControl[2]);
             brov.SetDofControl(dofControl);
 
         }

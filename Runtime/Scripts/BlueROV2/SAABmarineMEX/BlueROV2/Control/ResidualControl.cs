@@ -33,17 +33,12 @@ namespace DefaultNamespace.BlueROV2.Control
 
         public override void OnEpisodeBegin()
         {
-            // Reset the Brov to its starting position TODO: later, make the starting position more random
+            // Reset the Brov to its starting position
             Vector3 localStartPos = new Vector3(0.0f, 0.0f, 0.0f); // TODO: make it relative to the same origin as it will be irl
             Quaternion localStartRot = Quaternion.Euler(0, 0, 0);
             dynamics.SetZeroVels();
             dynamics.SetPose(localStartPos, localStartRot);
             
-        }
-
-        public void SetDynamics(BrovDynamics dyns)
-        {
-            dynamics = dyns;
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -61,10 +56,9 @@ namespace DefaultNamespace.BlueROV2.Control
 
         public override void OnActionReceived(ActionBuffers actions)
         {
-            //print("GET ACTIOOOOOONS");
+            // Actions then used in BlueROV2 core script
             ActionSegment<float> actionsSeg = actions.ContinuousActions;
             currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
-            //print(currActions);
         }
         
         public override void Heuristic(in ActionBuffers actionsOut)

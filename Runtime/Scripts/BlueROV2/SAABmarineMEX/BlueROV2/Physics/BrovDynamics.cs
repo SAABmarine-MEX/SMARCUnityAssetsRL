@@ -499,7 +499,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             // Get orientation in Unity's ENU frame
             //Quaternion q_enu_local = map.transform.InverseTransformPoint(mainBody.transform.rotation);
             Quaternion localRotation = Quaternion.Inverse(map.transform.rotation) * mainBody.transform.rotation;
-            Quaternion<NED> rotationNed = localRotation.To<NED>();            
+            Quaternion<NED> rotationNed = localRotation.To<NED>();         
             //Vector3 euler = rotationNed.eulerAngles;
             //print("EUERERL");
             //print(euler.x + "   " + euler.y + "     " + euler.z);

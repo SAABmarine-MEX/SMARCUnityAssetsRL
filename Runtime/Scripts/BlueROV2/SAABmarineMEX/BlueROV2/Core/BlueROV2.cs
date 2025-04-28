@@ -21,7 +21,6 @@ namespace DefaultNamespace.BlueROV2.Core
         private GameObject map;
         
         float[] dofControl = new float[] { 1500, 1500, 1500, 1500, 1500, 1500 };
-        
         float[] bodyTau = new float[] { 0, 0, 0, 0, 0, 0 };
         
         
@@ -30,12 +29,7 @@ namespace DefaultNamespace.BlueROV2.Core
             map = GameObject.Find("map");
             if (map != null){ Debug.Log("map found"); }
             
-            // These are now set directly from the scene
-            //dynamics = GetComponent<BrovDynamics>();
-            //agent = GetComponent<RLController>();
-            //sitl = GetComponent<ArduSub>();
-            
-            // Both dynamics and agent needs awareness of the map frame
+            // Both dynamics and agent need awareness of the map frame
             dynamics.Setup(map);
             agent.Setup(map);
         }
@@ -50,13 +44,12 @@ namespace DefaultNamespace.BlueROV2.Core
         void FixedUpdate()
         {
             // Get control output
-            
             if (useRLTraining)
             {
                 dofControl = agent.GetScaledActions().ToArray();
                 
             }
-            //print(dofControl[0]);
+
             // Apply control output depending if want to use ardusub sitl or not
             if (useArdusub)
             {
@@ -65,8 +58,9 @@ namespace DefaultNamespace.BlueROV2.Core
             }
             else
             {
-                float[] u = sitl.RCInput(dofControl);
-                bodyTau = dynamics.SimulateFromMaxTau(u);
+                print("UNIMPLEMENTED"); // TODO
+                //float[] u = sitl.RCInput(dofControl);
+                //bodyTau = dynamics.SimulateFromMaxTau(u);
             }
             
             // Apply generated tau to body

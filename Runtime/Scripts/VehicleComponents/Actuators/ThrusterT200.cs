@@ -46,12 +46,26 @@ namespace VehicleComponents.Actuators
             this.pwm = Mathf.Clamp((float)pwm, -PWMMax, PWMMax);
         }
 
-        public double PwmToForce(double pwm)
+        public double PwmToForce2(double pwm)
         {
-            // This one is nomrilizaed [-1, 1]
+            // pwm: This one is nomrilizaed [-1, 1]
             double force = -140.3*math.pow(pwm,9)+389.9*math.pow(pwm,7)-404.1*math.pow(this.pwm,5)+176.0*math.pow(this.pwm,3)+8.9*this.pwm;
             return force;
         }
+        public double PwmToForce(double pwm)
+        {
+            pwm = ((pwm + 1.0f) / 2.0f) * (1900 - 1100) + 1100;
+            double kgf = 
+                -3.04338931856672e-13f * Mathf.Pow((float) pwm, 5) +
+                2.27813523978448e-9f  * Mathf.Pow((float) pwm, 4) +
+                -6.73710647138884e-6f  * Mathf.Pow((float) pwm, 3) +
+                0.00983670053385902f  * Mathf.Pow((float) pwm, 2) +
+                -7.08023833982539f     * pwm +
+                2003.55692021905f;
+
+            return kgf * 9.80665f;
+        }
+        
         void Start()
         {
             baseLinkMixedBody = new MixedBody(baseLinkArticulationBody, baseLinkRigidBody);

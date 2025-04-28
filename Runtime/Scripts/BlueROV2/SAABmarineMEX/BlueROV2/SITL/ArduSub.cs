@@ -3,6 +3,7 @@ using UnityEngine;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
 using Unity.Mathematics;
+using UnityEngine.Android;
 
 namespace DefaultNamespace.BlueROV2.SITL
 {
@@ -47,7 +48,7 @@ namespace DefaultNamespace.BlueROV2.SITL
                 { 0,  0, -1, -1,  1,  0},
             });
             
-            T_hat_transpose = DenseMatrix.OfArray(new double[,] 
+            T_hat_transpose = DenseMatrix.OfArray(new double[,] // TODO: is this T_trans för NED? för verkar funka med Z-down som positiv
             { // from mpc last semester. NOTE: this works best, gives right directions
                 {1,  -1,  0,  0,  0,  -1},
                 {1, 1,  0,  0,  0, 1},

@@ -499,14 +499,10 @@ namespace DefaultNamespace.BlueROV2.Physics
             // Get orientation in Unity's ENU frame
             //Quaternion q_enu_local = map.transform.InverseTransformPoint(mainBody.transform.rotation);
             Quaternion localRotation = Quaternion.Inverse(map.transform.rotation) * mainBody.transform.rotation;
-            Quaternion<NED> rotationNed = localRotation.To<NED>();         
-            //Vector3 euler = rotationNed.eulerAngles;
-            //print("EUERERL");
-            //print(euler.x + "   " + euler.y + "     " + euler.z);
-            // Convert quaternion from ENU to NED
-            //Quaternion q_ned_local = conversionQuaternion * q_enu * Quaternion.Inverse(conversionQuaternion);
+            Quaternion<NED> rotationNed = localRotation.To<NED>();
+            Quaternion rot = rotationNed.ToUnityQuaternion();
 
-            return localRotation;
+            return rot;
         }
         
         public Vector<float> GetVelsNED()
@@ -562,6 +558,15 @@ namespace DefaultNamespace.BlueROV2.Physics
             mainBody.TeleportRoot(worldPosition, localRotation);
         }
         
+        public void SetPoseMap(Vector3 localPosition, Quaternion localRotation)
+        {
+            // Convert to world-space using the parent's transform
+            Transform mapTransform = map.transform;
+            Vector3 worldPosition = mapTransform.TransformPoint(localPosition);
+            //Quaternion worldRotation = parentTransform.rotation * localRotation;
+            mainBody.TeleportRoot(worldPosition, localRotation);
+        }
+        
         public Vector3 GetForwardUnitVec() { return mainBody.transform.forward; }
         public float GetHeight() { return mainBody.transform.position.y; }
         
@@ -575,7 +580,14 @@ namespace DefaultNamespace.BlueROV2.Physics
             }
         }
 
-        
+        public void CalculateResidualTau(float[] aRes)
+        {
+            // linear acc + angular
+            
+            // F = m * acc_lin
+            
+            // M = I * acc_ang
+        }
         
         
         

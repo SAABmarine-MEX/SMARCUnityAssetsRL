@@ -143,8 +143,8 @@ namespace DefaultNamespace.BlueROV2.Control
             //next2Gates[0] = gatePositions[iNextGate];
             //if (iNextGate+1 == gatePositions.Count) { next2Gates[1] = gatePositions[0]; }
             //else { next2Gates[1] = gatePositions[iNextGate+1]; }
-            next2Gates[0] = gatePositions[0];
-            next2Gates[1] = gatePositions[1];
+            //next2Gates[0] = gatePositions[0];
+            //next2Gates[1] = gatePositions[1];
             iNextGate = 0;
             
             

@@ -2,6 +2,7 @@ using UnityEngine;
 using DefaultNamespace.BlueROV2.Control;
 using DefaultNamespace.BlueROV2.Physics;
 using DefaultNamespace.BlueROV2.SITL;
+using MathNet.Numerics.LinearAlgebra;
 
 
 namespace DefaultNamespace.BlueROV2.Core
@@ -17,7 +18,7 @@ namespace DefaultNamespace.BlueROV2.Core
         public bool useArdusub = true; // Bool to declare if to use ArduSub sitl or to use scaled max tau control
         private bool useRLTraining = true; // TODO: make script override public varibles set in scene
         // TODO: problem with running inference from ros
-        private bool useResModel = true;
+        private bool useResModel = false;
         
         // map frame. To replicate standard ros map frame
         private GameObject map;
@@ -67,7 +68,19 @@ namespace DefaultNamespace.BlueROV2.Core
 
             if (useResModel)
             {
+                // Give action
                 resModel.RecordActions(dofControl);
+                
+                // Give vels
+                Vector<float> vels =  dynamics.GetVelsNED();
+                resModel.GetVelsNED(vels);
+
+                // Do res thing
+                float[] aRes = resModel.GetResiduals();
+                
+                // Calculate tau given residual acc
+                float[] tauRes = dynamics.CalculateResidualTau(aRes);
+                dynamics.SetInputTauNED(tauRes);
             }
             
             // Apply generated tau to body

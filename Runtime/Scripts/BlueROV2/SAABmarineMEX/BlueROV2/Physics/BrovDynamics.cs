@@ -131,7 +131,7 @@ namespace DefaultNamespace.BlueROV2.Physics
         void Start()
         {
             print("DYNAMIC START");
-            //map = GameObject.Find("map"); // map frame as in ros
+            map = GameObject.Find("map"); // map frame as in ros
             if (map == null)
             {
                 Debug.LogError("No map found!"); 
@@ -580,13 +580,27 @@ namespace DefaultNamespace.BlueROV2.Physics
             }
         }
 
-        public void CalculateResidualTau(float[] aRes)
+        public float[] CalculateResidualTau(float[] aRes)
         {
             // linear acc + angular
+            Vector3 forceRes = new Vector3(aRes[0], aRes[1], aRes[2]) * (float) m;
+            Vector3 torqueRes = new Vector3(aRes[3] * (float) I_x, aRes[4] * (float) I_y, aRes[5] * (float) I_z);
             
             // F = m * acc_lin
             
             // M = I * acc_ang
+            
+            float[] bodyResTau = new float[]
+            {
+                forceRes[0],
+                forceRes[1],
+                forceRes[2],
+                torqueRes[0],
+                torqueRes[1],
+                torqueRes[2],
+            };
+            
+            return bodyResTau;
         }
         
         

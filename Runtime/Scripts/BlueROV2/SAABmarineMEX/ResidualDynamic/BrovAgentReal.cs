@@ -81,7 +81,7 @@ public class BrovAgentReal : Agent
         inputForce  = new Vector3(actionsSeg[0], actionsSeg[1], actionsSeg[2]);
         inputTorque = new Vector3(actionsSeg[3], actionsSeg[4], actionsSeg[5]);
         
-        brovPhysics.SetInputNED(inputForce*1.5f, inputTorque*1.5f); // Residual dynamic
+        brovPhysics.SetInputNED(inputForce*0.7f, inputTorque*0.7f); // Residual dynamic
     }
     public override void Heuristic(in ActionBuffers actionsOut)
     {

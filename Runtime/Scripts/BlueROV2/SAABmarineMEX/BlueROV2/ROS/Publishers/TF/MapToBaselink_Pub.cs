@@ -25,12 +25,42 @@ namespace DefaultNamespace.BlueROV2.ROS.Publishers.TF
             ros = ROSConnection.GetOrCreateInstance();
             ros.RegisterPublisher<TFMessageMsg>(topicName);
             
+            // Get dynamics
+            dynamics = GetComponent<BrovDynamics>();
+            if (dynamics == null)
+                Debug.LogError("BrovDynamics component not found on this GameObject.");
+            
+            // Get map
+            Transform current = transform.parent;
+            while (current != null)
+            {
+                Debug.Log("Checking: " + current.name);
+    
+                if (current.name == "map")
+                {
+                    Debug.Log("Found 'map' GameObject!");
+                    mapFrame = current.gameObject;
+                    Debug.Log("Parent of " + current.name + " is: " + (current.parent != null ? current.parent.name : "null"));
+                    break;
+                }
+
+                current = current.parent;
+            }
+            if (mapFrame == null)
+            {
+                Debug.LogWarning("'map' GameObject not found in parent hierarchy.");
+            }
+            if (mapFrame != null){ Debug.Log("map found"); }
+            
+            // Get baselink frame
+            baseLinkFrame = transform.Find("odom/base_link").gameObject;
         }
 
         void FixedUpdate()
         {
             // maybe not best way but i know these are map to baselink
             // TODO: use the gameboject frames for mor dynamic code
+            print("ROOOOOOOOS MAP PUUUUB");
             Vector3 position = dynamics.GetPosNED();
             Quaternion rotation = dynamics.GetQuaternionNED();
             Quaternion<NED> rotationNed = rotation.To<NED>();

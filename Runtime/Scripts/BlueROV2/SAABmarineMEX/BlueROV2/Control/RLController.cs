@@ -65,16 +65,55 @@ namespace DefaultNamespace.BlueROV2.Control
             {
                 Debug.LogError("dynamics not set");
             }
-            map = GameObject.Find("map"); // Map frame as in ros
+
+            if (map == null)
+            {
+                Debug.LogError("map not set");
+            }
             
             // Init position
+            print("aaaaaaaaaaaaaaaaaaaa");
             startPos = dynamics.GetPosNED();
             //print("Start pos:   " + startPos[0]+ "      " + startPos[1] + "      " + startPos[2]);
             prevPos = startPos;
             currPos = prevPos;
             
             // Get checkpoints positions
-            gates = GameObject.Find("Checkpoints"); // TODO: prob have to fix this when adding multiple scene
+            print("NU SKA VI TA CHECKPOINTSARNA!!!");
+            Debug.Log("My name: " + gameObject.name);
+            Debug.Log("My parent: " + (transform.parent != null ? transform.parent.name : "None"));
+
+            Transform current2 = transform.parent;
+            while (current2 != null)
+            {
+                Debug.Log("Checking: " + current2.name);
+                foreach (Transform sibling in current2)
+                {
+                    Debug.Log("Sibling name: " + sibling.name);
+                    if (sibling.name == "Checkpoints")
+                    {
+                        Debug.Log("Found 'Checkpoints' GameObject!");
+                        gates = sibling.gameObject;
+                        Debug.Log("Parent of " + sibling.name + " is: " + (sibling.parent != null ? sibling.parent.name : "null"));
+                        break;
+                    }
+                }
+    
+
+                current2 = current2.parent;
+            }
+            
+            
+
+            if (gates == null)
+            {
+                Debug.LogError("'Checkpoints' GameObject not found in parent hierarchy.");
+            }
+            
+
+
+            //gates = GameObject.Find("Checkpoints"); // TODO: prob have to fix this when adding multiple scene
+            /*
             print("Gates:");
             if (gates != null)
             {
@@ -96,6 +135,7 @@ namespace DefaultNamespace.BlueROV2.Control
             {
                 Debug.LogError("Gates not set");
             }
+            */
             
             
             Gizmos.color = Color.green; // Color for spheres
@@ -143,8 +183,8 @@ namespace DefaultNamespace.BlueROV2.Control
             //next2Gates[0] = gatePositions[iNextGate];
             //if (iNextGate+1 == gatePositions.Count) { next2Gates[1] = gatePositions[0]; }
             //else { next2Gates[1] = gatePositions[iNextGate+1]; }
-            next2Gates[0] = gatePositions[0];
-            next2Gates[1] = gatePositions[1];
+            //next2Gates[0] = gatePositions[0];
+            //next2Gates[1] = gatePositions[1];
             iNextGate = 0;
             
             

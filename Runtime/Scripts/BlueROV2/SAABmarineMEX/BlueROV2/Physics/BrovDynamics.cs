@@ -131,10 +131,9 @@ namespace DefaultNamespace.BlueROV2.Physics
         void Start()
         {
             print("DYNAMIC START");
-            //map = GameObject.Find("map"); // map frame as in ros
             if (map == null)
             {
-                Debug.LogError("No map found!"); 
+                Debug.LogError("map not set");
             }
             
             //Matrices
@@ -153,14 +152,14 @@ namespace DefaultNamespace.BlueROV2.Physics
             M_A = DenseMatrix.OfDiagonalArray(new double[] {X_udot, Y_vdot, Z_wdot, K_pdot, M_qdot, N_rdot});
             
             
-            // min max ranges for each dof, used during autumn, from OSBS 
+            // min max ranges for each dof, used during autumn, from OSBS. Ordered as OverrideRCIn
             minMaxes = new Vector2[nInput];
-            minMaxes[0] = new Vector2(-85f, 85f); // x
-            minMaxes[1] = new Vector2(-85f, 85f); // y
+            minMaxes[0] = new Vector2(-14f, 14f); // roll
+            minMaxes[1] = new Vector2(-14f, 14f); // pitch
             minMaxes[2] = new Vector2(-122f, 122f); // z
-            minMaxes[3] = new Vector2(-14f, 14f); // roll
-            minMaxes[4] = new Vector2(-14f, 14f); // pitch
-            minMaxes[5] = new Vector2(-14f, 14f); // yaw
+            minMaxes[3] = new Vector2(-14f, 14f); // yaw
+            minMaxes[4] = new Vector2(-85f, 85f); // x
+            minMaxes[5] = new Vector2(-85f, 85f); // y
             
             /*
             // from https://www.mdpi.com/2076-3417/14/17/7453#FD5-applsci-14-07453
@@ -421,14 +420,12 @@ namespace DefaultNamespace.BlueROV2.Physics
         public float[] SimulateFromMaxTau(float[] dofPwms)
         {
             Vector<float> dofTau = ScaleActions(dofPwms);
-            print("dof minmax: ");
+            print("dof tau control: ");
             print(dofTau[0] + " " + dofTau[1] + " " + dofTau[2] + " " + dofTau[3] + ", " + dofTau[4] + ", " + dofTau[5]);
-            Vector3 inputForce2  = new Vector3(dofTau[0], dofTau[1], dofTau[2]);
-            Vector3 inputTorque2 = new Vector3(dofTau[3], dofTau[4], dofTau[5]);
             
             return dofTau.ToArray();
         }
-        public Vector<float> ScaleActions(float[] actionsNorm)
+        public Vector<float> ScaleActions(float[] actionsNorm) // OverrideRCIn order
         {
             Vector<float> actionsScaled = Vector<float>.Build.Dense(6, 0f);
             for (int i = 0; i < nInput; i++)
@@ -461,6 +458,10 @@ namespace DefaultNamespace.BlueROV2.Physics
         }
         public Vector3 GetPosNED()
         {
+            print("FDASFDSAFADSF" + mainBody.transform.position);
+            print("IN GET POS, MAP PARENT:"); 
+            print(map.transform.parent.name);
+            map.transform.InverseTransformPoint(mainBody.transform.position);
             Vector3 localPosition = map.transform.InverseTransformPoint(mainBody.transform.position);
             var xyz = localPosition.To<NED>().ToDense();
             //float x = (float) xyz[0];
@@ -580,13 +581,27 @@ namespace DefaultNamespace.BlueROV2.Physics
             }
         }
 
-        public void CalculateResidualTau(float[] aRes)
+        public float[] CalculateResidualTau(float[] aRes)
         {
             // linear acc + angular
+            Vector3 forceRes = new Vector3(aRes[0], aRes[1], aRes[2]) * (float) m;
+            Vector3 torqueRes = new Vector3(aRes[3] * (float) I_x, aRes[4] * (float) I_y, aRes[5] * (float) I_z);
             
             // F = m * acc_lin
             
             // M = I * acc_ang
+            
+            float[] bodyResTau = new float[]
+            {
+                forceRes[0],
+                forceRes[1],
+                forceRes[2],
+                torqueRes[0],
+                torqueRes[1],
+                torqueRes[2],
+            };
+            
+            return bodyResTau;
         }
         
         

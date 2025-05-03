@@ -52,12 +52,12 @@ namespace DefaultNamespace.BlueROV2.Core
             if (useArdusub)
             {
                 float[] thrustersPwm = sitl.SITL(dofControl);
-                bodyTau = dynamics.SimulateFromThrusters(thrustersPwm);
+                bodyTau = dynamics.GetBodyTauFromThrusters(thrustersPwm);
             }
             else
             {
                 float[] u = sitl.RCInput(dofControl);
-                bodyTau = dynamics.SimulateFromMaxTau(u);
+                bodyTau = dynamics.GetBodyTauFromMaxTau(u);
             }
             
             // If isReal, meaning trying to simulate a "real" enviornment that differ from prior

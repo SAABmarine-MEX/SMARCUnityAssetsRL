@@ -60,7 +60,7 @@ namespace DefaultNamespace.BlueROV2.ROS.Publishers.TF
         {
             // maybe not best way but i know these are map to baselink
             // TODO: use the gameboject frames for mor dynamic code
-            print("ROOOOOOOOS MAP PUUUUB");
+            //print("ROOOOOOOOS MAP PUUUUB");
             Vector3 position = dynamics.GetPosNED();
             Quaternion rotation = dynamics.GetQuaternionNED();
             Quaternion<NED> rotationNed = rotation.To<NED>();

@@ -30,7 +30,7 @@ namespace DefaultNamespace.BlueROV2.Control
         /// Called from your AgentController.OnActionReceived
         /// to hand off the raw actions for this physics tick.
         /// </summary>
-        public void RecordActions(float[] dofControl)
+        public void SetActions(float[] dofControl)
         {
             float[] actions = new float[dofControl.Length];
             for (int i = 0; i < dofControl.Length; i++)
@@ -74,7 +74,7 @@ namespace DefaultNamespace.BlueROV2.Control
             return (value - originalMin) / (originalMax - originalMin) * (targetMax - targetMin) + targetMin;
         }
 
-        public void GetVelsNED(Vector<float> vels)
+        public void SetVelsNED(Vector<float> vels)
         {
             linVel = new Vector3(vels[0], vels[1], vels[2]);
             angVel = new Vector3(vels[3], vels[4], vels[5]);

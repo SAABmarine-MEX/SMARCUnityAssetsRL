@@ -49,7 +49,8 @@ namespace VehicleComponents.Actuators
         public double PwmToForce2(double pwm)
         {
             // pwm: This one is nomrilizaed [-1, 1]
-            double force = -140.3*math.pow(pwm,9)+389.9*math.pow(pwm,7)-404.1*math.pow(this.pwm,5)+176.0*math.pow(this.pwm,3)+8.9*this.pwm;
+            // TODO: testa denna igen efter tagit bort this.pwm
+            double force = -140.3*math.pow(pwm,9)+389.9*math.pow(pwm,7)-404.1*math.pow(pwm,5)+176.0*math.pow(pwm,3)+8.9*pwm;
             return force;
         }
         public double PwmToForce(double pwm)

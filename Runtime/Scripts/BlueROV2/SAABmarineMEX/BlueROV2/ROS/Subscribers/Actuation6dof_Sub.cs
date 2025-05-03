@@ -26,8 +26,8 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
     public class Actuation6dof_Sub : MonoBehaviour
     {
         //[RequireComponent(typeof(RLControl))]
-        //public RLController agent;
-        public Brov brov;
+        
+        private float[] dofControl = new float[] { 1500, 1500, 1500, 1500, 1500, 1500 };
         
         // ros stuff
         ROSConnection ros;
@@ -35,12 +35,14 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
         
         void Start()
         {
-            //agent = GetComponentInChildren<RLController>();
-            brov = GetComponent<Brov>();
-            
             // ros stuff
             ros = ROSConnection.GetOrCreateInstance();
             ros.Subscribe<Int32MultiArrayMsg>(topic, ReceiveControlOutput);
+        }
+
+        public float[] GetRosControlOutput()
+        {
+            return dofControl;
         }
 
         void ReceiveControlOutput(Int32MultiArrayMsg msg)
@@ -48,12 +50,10 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
             // msg - [roll, pitch, throttle (up/down), yaw, forward, lateral] (each between [1100, 1900])
             print("---RECIEVED CONTROL OUTPUT---");
             
-            float[] dofControl = new float[6];
             // With this way, it could practically take the whole overridercin msg eventhough everything above index 5 is useless
             for (int i = 0; i < dofControl.Length; i++) { dofControl[i] = (float) msg.data[i]; }
             print("DOF CONTROLS RECIEVED");
             print(dofControl[0] + "     " + dofControl[1] + "     " + dofControl[2]);
-            brov.SetDofControl(dofControl);
 
         }
     }

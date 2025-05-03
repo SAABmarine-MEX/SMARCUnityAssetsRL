@@ -6,7 +6,7 @@ using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 using DefaultNamespace.LookUpTable;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
-using VehicleComponents.Actuators;
+//using VehicleComponents.Actuators;
 
 /*
  * The article: An Open-Source Benchmark Simulator: Control of a BlueROV2 Underwater Robot, refered to as (OSBS) in the code,
@@ -18,7 +18,14 @@ namespace DefaultNamespace.BlueROV2.Physics
 {
     public class BrovDynamics : MonoBehaviour
     {
+        // Flags
+        public bool allowFixedUpdate = true;
+        
+        
+        // Components
         public ArticulationBody mainBody;
+        
+        /*
         public ArticulationBody prop_top_back_right;
         public ArticulationBody prop_top_front_right;
         public ArticulationBody prop_top_back_left;
@@ -27,7 +34,8 @@ namespace DefaultNamespace.BlueROV2.Physics
         public ArticulationBody prop_bot_front_right;
         public ArticulationBody prop_bot_back_left;
         public ArticulationBody prop_bot_front_left;
-
+        */
+        
         public ThrusterT200 PropTopBackRight;
         public ThrusterT200 PropTopFrontRight;
         public ThrusterT200 PropTopBackLeft;
@@ -41,14 +49,13 @@ namespace DefaultNamespace.BlueROV2.Physics
         private GameObject map;
         
         
-        // Constants
+        // BlueROV2 physics variables
         private double m = 0; //mass kg
         private double W = 0; //weight N
         private double B = 0; // bouyancy N
         double g = 9.82; // gravity m/s²
         double rho = 1000; // water density [kg/m^3]
         double nabla = 0.0134; // volume of BlueRoV [m^3]
-        private double rpmMax = 3000;
 
         //Bouyancy point coordinates relative to report coordinate system
         double  x_b = 0; double y_b = 0; double z_b = -0.01;
@@ -118,11 +125,12 @@ namespace DefaultNamespace.BlueROV2.Physics
 
         // Min and max force and torques acting on center of mass
         int nInput = 6;
-        private Vector2[] minMaxes;// = new Vector2[nInput];
+        private Vector2[] minMaxes;
         // These will act on the articulated body of the Brov
         Vector3 inputForce = Vector3.zero;
         Vector3 inputTorque = Vector3.zero;
 
+        
         public void Setup(GameObject mapframe)
         {
             map = mapframe;
@@ -130,11 +138,11 @@ namespace DefaultNamespace.BlueROV2.Physics
 
         void Start()
         {
-            print("DYNAMIC START");
             if (map == null)
             {
                 Debug.LogError("map not set");
             }
+            
             
             //Matrices
             // Dampining matrix
@@ -147,12 +155,13 @@ namespace DefaultNamespace.BlueROV2.Physics
                 Mq,
                 Nr
             });
+            
             // Rigid body and added mass matrices
             // Matrix<double> M_RB = DenseMatrix.OfDiagonalArray(new double[] {m, m, m, I_x, I_y, I_z});
             M_A = DenseMatrix.OfDiagonalArray(new double[] {X_udot, Y_vdot, Z_wdot, K_pdot, M_qdot, N_rdot});
             
             
-            // min max ranges for each dof, used during autumn, from OSBS. Ordered as OverrideRCIn
+            // min max ranges for each dof, from OSBS. Ordered as OverrideRCIn
             minMaxes = new Vector2[nInput];
             minMaxes[0] = new Vector2(-14f, 14f); // roll
             minMaxes[1] = new Vector2(-14f, 14f); // pitch
@@ -171,15 +180,16 @@ namespace DefaultNamespace.BlueROV2.Physics
             minMaxes[5] = new Vector2(-37.72f, 37.72f); // yaw
             */
             
-            // Get all propeller components
-            PropTopBackRight = GameObject.Find("PropTopBackRight").GetComponent<ThrusterT200>();
-            PropTopFrontRight = GameObject.Find("PropTopFrontRight").GetComponent<ThrusterT200>();
-            PropTopBackLeft = GameObject.Find("PropTopBackLeft").GetComponent<ThrusterT200>();
-            PropTopFrontLeft = GameObject.Find("PropTopFrontLeft").GetComponent<ThrusterT200>();
-            PropBotBackRight = GameObject.Find("PropBotBackRight").GetComponent<ThrusterT200>();
-            PropBotFrontRight = GameObject.Find("PropBotFrontRight").GetComponent<ThrusterT200>();
-            PropBotBackLeft = GameObject.Find("PropBotBackLeft").GetComponent<ThrusterT200>();
-            PropBotFrontLeft = GameObject.Find("PropBotFrontLeft").GetComponent<ThrusterT200>();
+            
+            // Get thrusters
+            PropTopBackRight  = transform.Find("Actuators/PropTopBackRight").GetComponent<ThrusterT200>();
+            PropTopFrontRight = transform.Find("Actuators/PropTopFrontRight").GetComponent<ThrusterT200>();
+            PropTopBackLeft   = transform.Find("Actuators/PropTopBackLeft").GetComponent<ThrusterT200>();
+            PropTopFrontLeft  = transform.Find("Actuators/PropTopFrontLeft").GetComponent<ThrusterT200>();
+            PropBotBackRight  = transform.Find("Actuators/PropBotBackRight").GetComponent<ThrusterT200>();
+            PropBotFrontRight = transform.Find("Actuators/PropBotFrontRight").GetComponent<ThrusterT200>();
+            PropBotBackLeft   = transform.Find("Actuators/PropBotBackLeft").GetComponent<ThrusterT200>();
+            PropBotFrontLeft  = transform.Find("Actuators/PropBotFrontLeft").GetComponent<ThrusterT200>();
             
             thrusters = new List<ThrusterT200>
             {
@@ -194,15 +204,17 @@ namespace DefaultNamespace.BlueROV2.Physics
             };
             
             
+            /*
             // Get all propeller articulation bodies
-            prop_top_back_right = GameObject.Find("prop_top_back_right_link").GetComponent<ArticulationBody>();
-            prop_top_front_right = GameObject.Find("prop_top_front_right_link").GetComponent<ArticulationBody>();
-            prop_top_back_left = GameObject.Find("prop_top_back_left_link").GetComponent<ArticulationBody>();
-            prop_top_front_left = GameObject.Find("prop_top_front_left_link").GetComponent<ArticulationBody>();
-            prop_bot_back_right = GameObject.Find("prop_bot_back_right_link").GetComponent<ArticulationBody>();
-            prop_bot_front_right = GameObject.Find("prop_bot_front_right_link").GetComponent<ArticulationBody>();
-            prop_bot_back_left = GameObject.Find("prop_bot_back_left_link").GetComponent<ArticulationBody>();
-            prop_bot_front_left = GameObject.Find("prop_bot_front_left_link").GetComponent<ArticulationBody>();
+            prop_top_back_right = GameObject.Find("odom/base_link/prop_top_back_right_link").GetComponent<ArticulationBody>();
+            prop_top_front_right = GameObject.Find("odom/base_link/prop_top_front_right_link").GetComponent<ArticulationBody>();
+            prop_top_back_left = GameObject.Find("odom/base_link/prop_top_back_left_link").GetComponent<ArticulationBody>();
+            prop_top_front_left = GameObject.Find("odom/base_link/prop_top_front_left_link").GetComponent<ArticulationBody>();
+            prop_bot_back_right = GameObject.Find("odom/base_link/prop_bot_back_right_link").GetComponent<ArticulationBody>();
+            prop_bot_front_right = GameObject.Find("odom/base_link/prop_bot_front_right_link").GetComponent<ArticulationBody>();
+            prop_bot_back_left = GameObject.Find("odom/base_link/prop_bot_back_left_link").GetComponent<ArticulationBody>();
+            prop_bot_front_left = GameObject.Find("odom/base_link/prop_bot_front_left_link").GetComponent<ArticulationBody>();
+            */
             
             // Get mass from unity + one time calculations
             m = mainBody.mass; // hk-demo mass: 14.57kg
@@ -212,27 +224,28 @@ namespace DefaultNamespace.BlueROV2.Physics
             W = m * g; // weight
             B = rho*g*nabla; // The buoyancy in [N] given by OSBS
         }
-
+        
         void FixedUpdate()
         {
+            if (!allowFixedUpdate) return;
+
+            UpdateDynamics();
+        }
+
+        
+        // Dynamics methods
+        public void UpdateDynamics()
+        {
             // 1. Get state
-            //Vector<float> poseVec = GetPoseNED();
-            //float x   = poseVec[0], y     = poseVec[1], z   = poseVec[2];
-            //float phi = poseVec[3], theta = poseVec[4], tau = poseVec[5];
             Vector<double> rotVec = GetRotNED();
-            //float phi = (float) rotVec[0], theta = (float) rotVec[1], tau = (float) rotVec[2];
-            //print("angles");
-            //print(phi*Mathf.Rad2Deg + " " + theta*Mathf.Rad2Deg + " " + tau*Mathf.Rad2Deg);
             Vector<float> velVecFloat = GetVelsNED();
             Vector<double> velVec = Vector<double>.Build.Dense(velVecFloat.Count, i => (double)velVecFloat[i]);
-            float u = (float) velVec[0], v = (float) velVec[1], w = (float) velVec[2];
-            float p = (float) velVec[3], q = (float) velVec[4], r = (float) velVec[5];
             
             
             // 2. Calculate matrices dependent on state
-            Matrix<double> C = CalculateCMatrix(u, v, w, p, q, r);
+            Matrix<double> C = CalculateCMatrix(velVec);
             CalculateBouyancy();
-            Matrix<double> D_of_vel = CalculateDMatrix(u, v, w, p, q, r);
+            Matrix<double> D_of_vel = CalculateDMatrix(velVec);
             
             
             // 3. Calculate fossen forces
@@ -262,7 +275,11 @@ namespace DefaultNamespace.BlueROV2.Physics
             addedTorque     = FRD.ConvertAngularVelocityToRUF(addedTorque);
             
             // Add forces and torques to rigid body
-            
+            // Apply forces and torques
+            mainBody.AddRelativeForce(-dampingForce - coriolisForce - restoringForce - addedForce + inputForce);
+            mainBody.AddRelativeTorque(-dampingTorque - coriolisTorque - restoringTorque - addedTorque + inputTorque);
+
+            /*
             mainBody.AddRelativeForce(-dampingForce);
             mainBody.AddRelativeForce(-coriolisForce);
             mainBody.AddRelativeForce(-restoringForce);
@@ -273,6 +290,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             mainBody.AddRelativeTorque(-restoringTorque);
             mainBody.AddRelativeTorque(-addedTorque);
             mainBody.AddRelativeTorque(inputTorque);
+            */
             
             
             // Reset input forces every fixed update
@@ -328,14 +346,11 @@ namespace DefaultNamespace.BlueROV2.Physics
             tauAddedInertia = M_A * vel_vec_dot;
         }
         
-        public void SetInputTauNED(float[] bodyTau)
+        private Matrix<double> CalculateCMatrix(Vector<double> velVec)
         {
-            inputForce = new Vector3(bodyTau[0], bodyTau[1], bodyTau[2]);
-            inputTorque = new Vector3(bodyTau[3], bodyTau[4], bodyTau[5]);
-        }
-        
-        private Matrix<double> CalculateCMatrix(float u, float v, float w, float p, float q, float r)
-        {
+            float u = (float) velVec[0], v = (float) velVec[1], w = (float) velVec[2];
+            float p = (float) velVec[3], q = (float) velVec[4], r = (float) velVec[5];
+            
             // Coriollis and centripetal matrices
             Matrix<double> C_RB = DenseMatrix.OfArray(new double[,]
             {
@@ -358,8 +373,12 @@ namespace DefaultNamespace.BlueROV2.Physics
             Matrix<double> C = C_RB + C_A;
             return C;
         }
-        private Matrix<double> CalculateDMatrix(float u, float v, float w, float p, float q, float r)
+        
+        private Matrix<double> CalculateDMatrix(Vector<double> velVec)
         {
+            float u = (float) velVec[0], v = (float) velVec[1], w = (float) velVec[2];
+            float p = (float) velVec[3], q = (float) velVec[4], r = (float) velVec[5];
+            
             // Dampening matrices
             Matrix<double> Dn = DenseMatrix.OfDiagonalArray(new double[] 
             {
@@ -373,223 +392,26 @@ namespace DefaultNamespace.BlueROV2.Physics
             Matrix<double> D_of_vel = D + Dn;
             return D_of_vel;
         }
+        
         private void CalculateBouyancy()
         {
             var worldPos = mainBody.transform.position;
-            //print("HEIGHT:");
-            //print(worldPos.y);
             if (worldPos.y >= 0)
             {
-                //print("ON LAND, NO B!!!");
-                B = 0; // TODO: maybe make into local variable
+                B = 0;
             }
             else
             {
                 B = rho*g*nabla;
             }
         }
-
-        public float[] SimulateFromThrusters(float[] mPwms)
-        {
-            // Get thruster forces
-            double[] thrusterForces = new double[thrusters.Count];
-            for (int i = 0; i < thrusters.Count; i++)
-            {
-                thrusterForces[i] = thrusters[i].PwmToForce(mPwms[i]);
-            }
-            var forceVector = Vector<double>.Build.Dense(thrusterForces);
-            
-            // Convert to input tau acting on body
-            var bodyTau = T * forceVector;
-            //inputForce = bodyTau.SubVector(0, 3);   // First 3 elements: indices 0,1,2
-            Vector3 inputForce2 = new Vector3((float) bodyTau[0], (float) bodyTau[1], (float) bodyTau[2]);
-            float[] bodyTauFloat = new float[]
-            {
-                (float) bodyTau[0],
-                (float) bodyTau[1],
-                (float) bodyTau[2],
-                (float) bodyTau[3],
-                (float) bodyTau[4],
-                (float) bodyTau[5],
-            };
-            //inputTorque = bodyTau.SubVector(3, 3);  // Last 3 elements: indices 3,4,5
-            Vector3 inputTorque2 = new Vector3((float) bodyTau[3], (float) bodyTau[4], (float) bodyTau[5]);
-            return bodyTauFloat;
-        }
-
-        public float[] SimulateFromMaxTau(float[] dofPwms)
-        {
-            Vector<float> dofTau = ScaleActions(dofPwms);
-            print("dof tau control: ");
-            print(dofTau[0] + " " + dofTau[1] + " " + dofTau[2] + " " + dofTau[3] + ", " + dofTau[4] + ", " + dofTau[5]);
-            
-            return dofTau.ToArray();
-        }
-        public Vector<float> ScaleActions(float[] actionsNorm) // OverrideRCIn order
-        {
-            Vector<float> actionsScaled = Vector<float>.Build.Dense(6, 0f);
-            for (int i = 0; i < nInput; i++)
-            {
-                actionsScaled[i] = ((actionsNorm[i] + 1f) / 2f) * (minMaxes[i].y - minMaxes[i].x) + minMaxes[i].x;
-            }
-            return actionsScaled;
-        }
-        public Vector<float> GetPoseNED()
-        {
-            // Get pos and rot vectors
-            Vector3 pos3 = GetPosNED();
-            Vector<float> pos = Vector<float>.Build.Dense(new float[] { pos3.x, pos3.y, pos3.z });
-            Quaternion q = GetQuaternionNED();
-            Vector<float> rot = Vector<float>.Build.Dense(new float[] { q.x, q.y, q.z, q.w });
-
-            // Create a new array large enough to hold both pos and rot
-            float[] combinedArray = new float[pos.Count + rot.Count];
-
-            // Copy pos elements into the combined array using System.Array.Copy
-            System.Array.Copy(pos.ToArray(), 0, combinedArray, 0, pos.Count);
-
-            // Copy rot elements into the combined array starting after pos
-            System.Array.Copy(rot.ToArray(), 0, combinedArray, pos.Count, rot.Count);
-
-            // Create a new Vector from the combined array
-            Vector<float> state = Vector<float>.Build.DenseOfArray(combinedArray);
-
-            return state;
-        }
-        public Vector3 GetPosNED()
-        {
-            print("FDASFDSAFADSF" + mainBody.transform.position);
-            print("IN GET POS, MAP PARENT:"); 
-            print(map.transform.parent.name);
-            map.transform.InverseTransformPoint(mainBody.transform.position);
-            Vector3 localPosition = map.transform.InverseTransformPoint(mainBody.transform.position);
-            var xyz = localPosition.To<NED>().ToDense();
-            //float x = (float) xyz[0];
-            //float y = (float) xyz[1];
-            //float z = (float) xyz[2];
-            //return Vector<float>.Build.DenseOfArray(new float[] { x, y, z });
-            return new Vector3((float) xyz[0], (float) xyz[1], (float) xyz[2]);
-        }
-
-        public Vector<double> GetRotNED2()
-        {
-            Vector3 localRotation = map.transform.InverseTransformPoint(mainBody.transform.rotation.eulerAngles);
-            var phiThetaPsi = localRotation.To<NED>().ToDense();
-            //print("Mathf.Deg2Rad:       " + Mathf.Deg2Rad);
-            // TODO: double check this that this is what mr fossen wants
-            float phi = (float) (Mathf.Deg2Rad * phiThetaPsi[0]); 
-            float theta = (float) (Mathf.Deg2Rad * phiThetaPsi[1]);
-            float psi = (float) (Mathf.Deg2Rad * phiThetaPsi[2]);
-            
-            return Vector<double>.Build.DenseOfArray(new double[] { phi, theta, psi });
-        }
         
-        public Vector<double> GetRotNED()
-        {
-            var world_rot = mainBody.transform.rotation.eulerAngles; 
-            // TODO: is this world rot in NED? How to get local. Confusing that it says velocity. check definitions
-            var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
-            float phi   = (float) (Mathf.Deg2Rad * phiThetaTau[0]);
-            float theta = (float) (Mathf.Deg2Rad * phiThetaTau[1]);
-            float psi   = (float) (Mathf.Deg2Rad * phiThetaTau[2]);
-            return Vector<double>.Build.DenseOfArray(new double[] { phi, theta, psi });
-        }
-        
-        public Quaternion GetQuaternionNED()
-        {
-            // Get orientation in Unity's ENU frame
-            //Quaternion q_enu_local = map.transform.InverseTransformPoint(mainBody.transform.rotation);
-            Quaternion localRotation = Quaternion.Inverse(map.transform.rotation) * mainBody.transform.rotation;
-            Quaternion<NED> rotationNed = localRotation.To<NED>();
-            Quaternion rot = rotationNed.ToUnityQuaternion();
-
-            return rot;
-        }
-        
-        public Vector<float> GetVelsNED()
-        {
-            Vector3 linVels = GetLinVelsNED();
-            Vector3 angVels = GetAngVelsNED();
-            
-            Vector<float> stateVels = Vector<float>.Build.DenseOfArray(new float[]
-            {
-                linVels.x, linVels.y, linVels.z, 
-                angVels.x, angVels.y, angVels.z,
-            });
-            
-            return stateVels;
-        }
-        
-        // Velocities
-        public Vector3 GetLinVelsNED()
-        {
-            var inverseTransformDirection = mainBody.transform.InverseTransformDirection(mainBody.linearVelocity); // Local frame vel
-            var uvw = inverseTransformDirection.To<NED>().ToDense();
-            float u = (float) uvw[0];
-            float v = (float) uvw[1];
-            float w = (float) uvw[2];
-            return new Vector3(u, v, w);
-        }
-
-        public Vector3 GetAngVelsNED()
-        {
-            var transformAngularVelocity = mainBody.transform.InverseTransformDirection(mainBody.angularVelocity); // Local frame angular vel (gives negative velocities)
-            // Convert angles, angular velocities and velocities to OSBS coordinate system
-            var pqr = FRD.ConvertAngularVelocityFromRUF(transformAngularVelocity).ToDense(); // FRD is same as NED for ANGLES ONLY
-            float p = (float) pqr[0];
-            float q = (float) pqr[1];
-            float r = (float) pqr[2];
-            return new Vector3(p, q, r);
-        }
-
-        
-        
-        public void SetZeroVels()
-        {
-            mainBody.linearVelocity = Vector3.zero;
-            mainBody.angularVelocity = Vector3.zero;
-        }
-
-        public void SetPose(Vector3 localPosition, Quaternion localRotation)
-        {
-            // Convert to world-space using the parent's transform
-            Transform parentTransform = transform.parent;
-            Vector3 worldPosition = parentTransform.TransformPoint(localPosition);
-            //Quaternion worldRotation = parentTransform.rotation * localRotation;
-            mainBody.TeleportRoot(worldPosition, localRotation);
-        }
-        
-        public void SetPoseMap(Vector3 localPosition, Quaternion localRotation)
-        {
-            // Convert to world-space using the parent's transform
-            Transform mapTransform = map.transform;
-            Vector3 worldPosition = mapTransform.TransformPoint(localPosition);
-            //Quaternion worldRotation = parentTransform.rotation * localRotation;
-            mainBody.TeleportRoot(worldPosition, localRotation);
-        }
-        
-        public Vector3 GetForwardUnitVec() { return mainBody.transform.forward; }
-        public float GetHeight() { return mainBody.transform.position.y; }
-        
-        void OnCollisionEnter(Collision collision)
-        {
-            if (collision.gameObject.layer == LayerMask.NameToLayer("Water"))
-            {
-                Debug.Log("Touched Water layer!");
-                //B = 0;
-                // Do something here
-            }
-        }
-
         public float[] CalculateResidualTau(float[] aRes)
         {
-            // linear acc + angular
-            Vector3 forceRes = new Vector3(aRes[0], aRes[1], aRes[2]) * (float) m;
-            Vector3 torqueRes = new Vector3(aRes[3] * (float) I_x, aRes[4] * (float) I_y, aRes[5] * (float) I_z);
-            
             // F = m * acc_lin
-            
+            Vector3 forceRes = new Vector3(aRes[0], aRes[1], aRes[2]) * (float) m;
             // M = I * acc_ang
+            Vector3 torqueRes = new Vector3(aRes[3] * (float) I_x, aRes[4] * (float) I_y, aRes[5] * (float) I_z);
             
             float[] bodyResTau = new float[]
             {
@@ -605,6 +427,178 @@ namespace DefaultNamespace.BlueROV2.Physics
         }
         
         
+        // Getters
+        public float[] GetBodyTauFromThrusters(float[] mPwms)
+        {
+            // Get thruster forces
+            double[] thrusterForces = new double[thrusters.Count];
+            for (int i = 0; i < thrusters.Count; i++)
+            {
+                thrusterForces[i] = thrusters[i].PwmToForce(mPwms[i]);
+            }
+            var forceVector = Vector<double>.Build.Dense(thrusterForces);
+            
+            // Convert to input tau acting on body
+            var bodyTau = T * forceVector;
+            //inputForce = bodyTau.SubVector(0, 3);   // First 3 elements: indices 0,1,2
+            //Vector3 inputForce2 = new Vector3((float) bodyTau[0], (float) bodyTau[1], (float) bodyTau[2]);
+            float[] bodyTauFloat = new float[]
+            {
+                (float) bodyTau[0],
+                (float) bodyTau[1],
+                (float) bodyTau[2],
+                (float) bodyTau[3],
+                (float) bodyTau[4],
+                (float) bodyTau[5],
+            };
+            //inputTorque = bodyTau.SubVector(3, 3);  // Last 3 elements: indices 3,4,5
+            //Vector3 inputTorque2 = new Vector3((float) bodyTau[3], (float) bodyTau[4], (float) bodyTau[5]);
+            return bodyTauFloat;
+        }
+        public float[] GetBodyTauFromMaxTau(float[] dofPwms)
+        {
+            Vector<float> dofTau = GetScaledActions(dofPwms);
+            print("dof tau control: ");
+            print(dofTau[0] + " " + dofTau[1] + " " + dofTau[2] + " " + dofTau[3] + ", " + dofTau[4] + ", " + dofTau[5]);
+            
+            return dofTau.ToArray();
+        }
+        public Vector<float> GetScaledActions(float[] actionsNorm) // OverrideRCIn order
+        {
+            Vector<float> actionsScaled = Vector<float>.Build.Dense(6, 0f);
+            for (int i = 0; i < nInput; i++)
+            {
+                actionsScaled[i] = ((actionsNorm[i] + 1f) / 2f) * (minMaxes[i].y - minMaxes[i].x) + minMaxes[i].x;
+            }
+            return actionsScaled;
+        }
         
+        // State getters
+        public Vector<float> GetPoseNED()
+        {
+            // Get pos and orientation vectors
+            Vector3 pos = GetPosNED();
+            Quaternion q = GetQuaternionNED();
+
+            Vector<float> state = Vector<float>.Build.DenseOfArray(new float[]
+            {
+                pos.x, pos.y, pos.z,
+                q.x, q.y, q.z, q.w
+            });
+
+            return state;
+        }
+        public Vector3 GetPosNED()
+        {
+            map.transform.InverseTransformPoint(mainBody.transform.position);
+            Vector3 localPosition = map.transform.InverseTransformPoint(mainBody.transform.position);
+            var xyz = localPosition.To<NED>().ToDense();
+            return new Vector3((float) xyz[0], (float) xyz[1], (float) xyz[2]);
+        }
+        public Vector<double> GetRotNED() // [rad]
+        {
+            var world_rot = mainBody.transform.rotation.eulerAngles; 
+
+            var phiThetaTau = FRD.ConvertAngularVelocityFromRUF(world_rot).ToDense();
+            float phi   = (float) (Mathf.Deg2Rad * phiThetaTau[0]);
+            float theta = (float) (Mathf.Deg2Rad * phiThetaTau[1]);
+            float psi   = (float) (Mathf.Deg2Rad * phiThetaTau[2]);
+
+            return Vector<double>.Build.DenseOfArray(new double[] { phi, theta, psi });
+        }
+        public Quaternion GetQuaternionNED()
+        {
+            // Get orientation in Unity's ENU frame
+            Quaternion localRotation = Quaternion.Inverse(map.transform.rotation) * mainBody.transform.rotation;
+            Quaternion<NED> rotationNed = localRotation.To<NED>();
+            Quaternion rot = rotationNed.ToUnityQuaternion();
+
+            return rot;
+        }
+        // Velocities
+        public Vector<float> GetVelsNED()
+        {
+            Vector3 linVels = GetLinVelsNED();
+            Vector3 angVels = GetAngVelsNED();
+            
+            Vector<float> stateVels = Vector<float>.Build.DenseOfArray(new float[]
+            {
+                linVels.x, linVels.y, linVels.z, 
+                angVels.x, angVels.y, angVels.z,
+            });
+            
+            return stateVels;
+        }
+        public Vector3 GetLinVelsNED()
+        {
+            var inverseTransformDirection = mainBody.transform.InverseTransformDirection(mainBody.linearVelocity); // Local frame vel
+            var uvw = inverseTransformDirection.To<NED>().ToDense();
+            float u = (float) uvw[0];
+            float v = (float) uvw[1];
+            float w = (float) uvw[2];
+            return new Vector3(u, v, w);
+        }
+        public Vector3 GetAngVelsNED()
+        {
+            var transformAngularVelocity = mainBody.transform.InverseTransformDirection(mainBody.angularVelocity); // Local frame angular vel (gives negative velocities)
+            // Convert angles, angular velocities and velocities to OSBS coordinate system
+            var pqr = FRD.ConvertAngularVelocityFromRUF(transformAngularVelocity).ToDense(); // FRD is same as NED for ANGLES ONLY
+            float p = (float) pqr[0];
+            float q = (float) pqr[1];
+            float r = (float) pqr[2];
+            return new Vector3(p, q, r);
+        }
+        
+        public Vector3 GetForwardUnitVec() { return mainBody.transform.forward; }
+        public float GetHeight() { return mainBody.transform.position.y; }
+
+        
+        // Setters
+        public void SetInputTauNED(float[] bodyTau)
+        {
+            inputForce = new Vector3(bodyTau[0], bodyTau[1], bodyTau[2]);
+            inputTorque = new Vector3(bodyTau[3], bodyTau[4], bodyTau[5]);
+        }
+        public void AddInputTauNED(float[] bodyTau)
+        {
+            for (int i = 0; i < 3; ++i)
+            {
+                inputForce[i] += bodyTau[i];
+                inputTorque[i] += bodyTau[i+3];
+
+            }
+        }
+        public void SetZeroVels()
+        {
+            mainBody.linearVelocity = Vector3.zero;
+            mainBody.angularVelocity = Vector3.zero;
+        }
+        public void SetPose(Vector3 localPosition, Quaternion localRotation)
+        {
+            // Convert to world-space using the parent's transform
+            Transform parentTransform = transform.parent;
+            Vector3 worldPosition = parentTransform.TransformPoint(localPosition);
+            //Quaternion worldRotation = parentTransform.rotation * localRotation;
+            mainBody.TeleportRoot(worldPosition, localRotation);
+        }
+        public void SetPoseMap(Vector3 localPosition, Quaternion localRotation)
+        {
+            // Convert to world-space using the parent's transform
+            Transform mapTransform = map.transform;
+            Vector3 worldPosition = mapTransform.TransformPoint(localPosition);
+            //Quaternion worldRotation = parentTransform.rotation * localRotation;
+            mainBody.TeleportRoot(worldPosition, localRotation);
+        }
+        
+        
+        void OnCollisionEnter(Collision collision)
+        {
+            if (collision.gameObject.layer == LayerMask.NameToLayer("Water"))
+            {
+                Debug.Log("Touched Water layer!");
+                //B = 0;
+                // Do something here
+            }
+        }
     }
 }

@@ -10,7 +10,7 @@ namespace DefaultNamespace.BlueROV2.Control
 {
     public class ResidualControl : Agent
     {
-        public bool isPrior = true; // Set in scene. if false - "real" dynamics
+        //public bool isPrior = true; // Set in scene. if false - "real" dynamics
         public BrovDynamics dynamics;
         private GameObject map;
         public TeleopController teleopController;
@@ -27,7 +27,7 @@ namespace DefaultNamespace.BlueROV2.Control
             {
                 Debug.LogError("dynamics not set");
             }
-            map = GameObject.Find("map"); // Map frame as in ros
+            //map = GameObject.Find("map"); // Map frame as in ros
             
         }
 
@@ -56,9 +56,12 @@ namespace DefaultNamespace.BlueROV2.Control
 
         public override void OnActionReceived(ActionBuffers actions)
         {
+            print("RESIDUAL AGENT ACTIONS");
+            
             // Actions then used in BlueROV2 core script
             ActionSegment<float> actionsSeg = actions.ContinuousActions;
             currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
+            print(currActions[0] + "    " + currActions[1] + "   " + currActions[2]);
         }
         
         public override void Heuristic(in ActionBuffers actionsOut)

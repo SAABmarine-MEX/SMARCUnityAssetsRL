@@ -41,17 +41,24 @@ namespace DefaultNamespace.BlueROV2.Core
             // Both dynamics and agent needs awareness of the map frame
             dynamics.Setup(map);
             agent.Setup(map);
+            
+            // Run update of dynamics in this script's FixedUpdate to give better understand of what is happening
+            dynamics.allowFixedUpdate = false; 
         }
         
         void FixedUpdate()
         {
             // Get control output
             float[] dofControl = agent.GetScaledActions().ToArray();
+            print("CONTROLS");
+            print(dofControl[0] + "     " + dofControl[1] + "     " + dofControl[2] + "     " + dofControl[3]);
             
             // Apply control output depending if want to use ardusub sitl or not
             if (useArdusub)
             {
                 float[] thrustersPwm = sitl.SITL(dofControl);
+                //print("THRUUUUST");
+                //print(thrustersPwm[0]);
                 bodyTau = dynamics.GetBodyTauFromThrusters(thrustersPwm);
             }
             else
@@ -66,8 +73,11 @@ namespace DefaultNamespace.BlueROV2.Core
                 for (int i = 0; i < bodyTau.Length; i++) { bodyTau[i] *= 1.5f; }
             }
             
-            // Apply generated tau to body
+            // Set generated tau to body
             dynamics.SetInputTauNED(bodyTau);
+            
+            // Update dynamics
+            dynamics.UpdateDynamics();
         }
     }
 }

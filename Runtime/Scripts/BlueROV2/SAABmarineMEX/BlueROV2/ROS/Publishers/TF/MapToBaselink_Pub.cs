@@ -60,35 +60,29 @@ namespace DefaultNamespace.BlueROV2.ROS.Publishers.TF
         {
             // maybe not best way but i know these are map to baselink
             // TODO: use the gameboject frames for mor dynamic code
-            //print("ROOOOOOOOS MAP PUUUUB");
-            Vector3 position = dynamics.GetPosNED();
-            Quaternion rotation = dynamics.GetQuaternionNED();
-            Quaternion<NED> rotationNed = rotation.To<NED>();
-            Quaternion<ENU> rotationEnu = rotationNed.To<ENU>();
             
-            // Convert to ENU
-            Vector3 enu = new Vector3(position.y, position.x, -position.z);  // N→E, E→N, D→-U
+            // Convert NED pos to ENU pos
+            Vector3 positionNED = dynamics.GetPosNED();
+            Vector3 posRUF = NED.ConvertToRUF(positionNED);
+            Vector3<FLU> positionENU = posRUF.To<FLU>();
             
-            // Rotation to convert from NED to ENU (180° around X, then 90° around Z)
-            Quaternion nedToEnu = Quaternion.Euler(180f, 0f, 90f);
-            // Equivalent of [sqrt(2)/2, sqrt(2)/2, 0, 0]
-            float s = Mathf.Sqrt(2f) / 2f;
-            Quaternion qRot = new Quaternion(s, s, 0f, 0f);  // x, y, z, w in Unity
-
-            //Quaternion<ENU> rotationNed = qRot * rotationNed;
+            // Convert NED orientation to ENU orientation
+            Quaternion qNED = dynamics.GetQuaternionNED();
+            Quaternion qRUF = NED.ConvertToRUF(qNED);
+            Quaternion<FLU> qENU = qRUF.To<FLU>();
             
             TransformStampedMsg tfStamped = new TransformStampedMsg
             {
                 header = new HeaderMsg
                 {
                     stamp = new TimeStamp(Clock.time),
-                    frame_id = "map"
+                    frame_id = "mocap" // before "map"
                 },
-                child_frame_id = "brov2heavy/base_link",
+                child_frame_id = "saab_rov", // before "brov2heavy/base_link" TODO: call ..._sim instead
                 transform = new TransformMsg
                 {
-                    translation = new Vector3Msg(enu.x, enu.y, enu.z),
-                    rotation = new QuaternionMsg(rotationEnu.x, rotationEnu.y, rotationEnu.z, rotationEnu.w)
+                    translation = new Vector3Msg(positionENU.x, positionENU.y, positionENU.z),
+                    rotation = new QuaternionMsg(qENU.x, qENU.y, qENU.z, qENU.w)
                 },
             };
             

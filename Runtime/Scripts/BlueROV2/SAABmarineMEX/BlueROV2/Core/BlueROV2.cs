@@ -3,7 +3,10 @@ using DefaultNamespace.BlueROV2.Control;
 using DefaultNamespace.BlueROV2.Physics;
 using DefaultNamespace.BlueROV2.ROS.Subscribers;
 using DefaultNamespace.BlueROV2.SITL;
+using DefaultNamespace.BlueROV2;
 using MathNet.Numerics.LinearAlgebra;
+using System;
+//using Codice.Client.Common.GameUI;
 
 /*
  * The purpose of this script is to give a dynamic way of sending control output and applying as body tau to the BlueROV2
@@ -18,17 +21,23 @@ namespace DefaultNamespace.BlueROV2.Core
         public BrovDynamics dynamics;
         public ArduSub sitl;
         public RLController agent; // Agent is only for training, not ros rl inference
-        public Residual resModel;
+        public ResidualPrepper resModel;
+        public PythonModelHttpClient client;
         private GameObject map; // map frame. To replicate standard ros map frame
         public Actuation6dof_Sub rosActuation;
+        
         
         // Flags
         // If to use ArduSub sitl or to use scaled max tau control
         public bool useArdusub = true;
+        
         // If to use training pipeline or ros inference
         private bool useRLTraining = true;
+        
         // If to use residual inference or not
-        private bool useResModel = false;
+        private bool useResModel = true;
+        private bool isQuerying = false;
+        
         
         // Input 
         private float[] dofControl = new float[] { 1500, 1500, 1500, 1500, 1500, 1500 };
@@ -49,9 +58,13 @@ namespace DefaultNamespace.BlueROV2.Core
                 Debug.LogError("ArduSub component not found on this GameObject.");
             
             // Residual
-            resModel = GetComponent<Residual>();
+            resModel = GetComponent<ResidualPrepper>();
             if (resModel == null)
                 Debug.LogError("Residual component not found on this GameObject.");
+
+            client = GetComponent<PythonModelHttpClient>();
+            if (client == null)
+                Debug.LogError("Client not found on this GameObject.");
             
             // Ros actuation
             rosActuation = GetComponent<Actuation6dof_Sub>();
@@ -90,12 +103,18 @@ namespace DefaultNamespace.BlueROV2.Core
             dynamics.Setup(map);
             agent.Setup(map);
 
-            // Run update of dynamics in this script's FixedUpdate to give better understand of what is happening
+            // Run update of dynamics in this script's FixedUpdate to give better understand of what is happening TODO: use set method instead
             dynamics.allowFixedUpdate = false; 
         }
         
-        void FixedUpdate()
+        async void FixedUpdate()
         {
+            if (isQuerying)
+            {
+                print("Is querying");
+                return;
+            }
+            
             // 1. Get control output
             if (useRLTraining)
                 dofControl = agent.GetScaledActions().ToArray();
@@ -123,21 +142,41 @@ namespace DefaultNamespace.BlueROV2.Core
             // 4. If residual inference, add residual tau as well
             if (useResModel)
             {
-                // Set actions
+                // Residual prepping
+                // Acceleration
                 resModel.SetActions(dofControl);
                 
-                // Set vels
+                // Velocity 
                 Vector<float> vels = dynamics.GetVelsNED();
                 resModel.SetVelsNED(vels);
-
-                // Do res thing
-                float[] aRes = resModel.GetResiduals();
                 
-                // Calculate tau given residual acc
-                float[] tauRes = dynamics.CalculateResidualTau(aRes);
+                // Gather prepped features
+                float[] features = resModel.GatherFeatures();
                 
-                // Add the residual tau
-                dynamics.AddInputTauNED(tauRes);
+                // Query residual inference
+                isQuerying = true;
+                float[] residuals = new float[] {};
+                try
+                {
+                    print("START QUERYING");
+                    residuals = await client.QueryResidualsAsync(features);
+                    print("Got residuals: " + string.Join(",", residuals));
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogError("Error querying model: " + ex);
+                }
+                finally
+                {
+                    print("DONE QUERYING");
+                    
+                    // Calculate tau given residual acc
+                    float[] tauRes = dynamics.CalculateResidualTau(residuals);
+                    
+                    // Add the residual tau
+                    dynamics.AddInputTauNED(tauRes);
+                    isQuerying = false;
+                }
             }
             
             

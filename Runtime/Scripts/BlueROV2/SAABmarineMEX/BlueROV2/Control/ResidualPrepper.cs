@@ -2,13 +2,16 @@ using UnityEngine;
 using Unity.MLAgents.Actuators;
 using MathNet.Numerics.LinearAlgebra;
 using System.Diagnostics;
-
+using System.Linq;
+using System.Threading.Tasks;
+using NUnit.Framework.Constraints;
+using System;
 
 namespace DefaultNamespace.BlueROV2.Control
 { 
-    public class Residual : MonoBehaviour
+    public class ResidualPrepper : MonoBehaviour
     {
-        PythonModelClient client;
+        PythonModelHttpClient client;
         Rigidbody rb;
 
         // Keep last step’s velocities so we can compute acceleration
@@ -23,13 +26,16 @@ namespace DefaultNamespace.BlueROV2.Control
 
         private float[] residuals;
         
+        private bool isQuerying = false;
+        
         // To measure time
         Stopwatch sw = new Stopwatch();
-
         void Awake()
         {
-            client = FindObjectOfType<PythonModelClient>();
+            client = FindObjectOfType<PythonModelHttpClient>();
         }
+        
+        public bool GetIsQuerying(){ return isQuerying; }
 
         /// <summary>
         /// Called from your AgentController.OnActionReceived
@@ -61,14 +67,15 @@ namespace DefaultNamespace.BlueROV2.Control
         }
         */
 
-        public float[] GetResiduals()
+        public async Task<float[]> GetResiduals()
         {
             float[] features = GatherFeatures();
 
             // 2) send to Python, get residual accelerations
             sw.Restart();
-            residuals = client.QueryResiduals(features);
+            var residuals = await client.QueryResidualsAsync(features);
             sw.Stop();
+            print("Got residuals: " + string.Join(",", residuals));
             print("ELapsed time for query" + sw.Elapsed.TotalSeconds);
             return residuals;
         }
@@ -87,8 +94,8 @@ namespace DefaultNamespace.BlueROV2.Control
             linVel = new Vector3(vels[0], vels[1], vels[2]);
             angVel = new Vector3(vels[3], vels[4], vels[5]);
         }
-
-        float[] GatherFeatures()
+        
+        public float[] GatherFeatures()
         {
             float dt = Time.fixedDeltaTime;
 
@@ -129,5 +136,34 @@ namespace DefaultNamespace.BlueROV2.Control
             rb.AddForce(linRes, ForceMode.Force);
             rb.AddTorque(angRes, ForceMode.Force);
         }
+        
+        /*
+        async void FixedUpdate()
+        {
+            if (isQuerying)
+            {
+                print("Is querying");
+                return;
+            }
+
+            isQuerying = true;
+            //float[] features = GatherFeatures();
+            float[] features = new float[18];
+
+            try
+            {
+                var residuals = await client.QueryResidualsAsync(features);
+                print("Got residuals: " + string.Join(",", residuals));
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogError("Error querying model: " + ex);
+            }
+            finally
+            {
+                isQuerying = false;
+            }
+        }
+        */
     }
 }

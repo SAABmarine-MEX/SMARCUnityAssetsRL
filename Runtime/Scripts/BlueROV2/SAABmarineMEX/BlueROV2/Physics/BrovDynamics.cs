@@ -50,12 +50,14 @@ namespace DefaultNamespace.BlueROV2.Physics
         
         
         // BlueROV2 physics variables
-        private double m = 0; //mass kg
+        private double m = 14.0; //mass kg
         private double W = 0; //weight N
         private double B = 0; // bouyancy N
         double g = 9.82; // gravity m/s²
         double rho = 1000; // water density [kg/m^3]
-        double nabla = 0.0134; // volume of BlueRoV [m^3]
+        //double nabla = 0.0134; // volume of BlueRoV [m^3]
+        double nabla = 0.0141; // volume of BlueRoV [m^3]. "floating" still at 14.1 ish
+
 
         //Bouyancy point coordinates relative to report coordinate system
         double  x_b = 0; double y_b = 0; double z_b = -0.01;
@@ -217,7 +219,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             */
             
             // Get mass from unity + one time calculations
-            m = mainBody.mass; // hk-demo mass: 14.57kg
+            //m = mainBody.mass; // hk-demo mass: 14.57kg
             I_x = mainBody.inertiaTensor.x;
             I_y = mainBody.inertiaTensor.z;
             I_z = mainBody.inertiaTensor.y; // y z switch. Unity to NED coordinates
@@ -344,6 +346,8 @@ namespace DefaultNamespace.BlueROV2.Physics
 
             // m*a  TODO: ?
             tauAddedInertia = M_A * vel_vec_dot;
+            
+            // TODO: J och D verkar dålig från pappret, l 
         }
         
         private Matrix<double> CalculateCMatrix(Vector<double> velVec)
@@ -573,7 +577,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             mainBody.linearVelocity = Vector3.zero;
             mainBody.angularVelocity = Vector3.zero;
         }
-        public void SetPose(Vector3 localPosition, Quaternion localRotation)
+        public void SetPose(Vector3 localPosition, Quaternion localRotation) //TODO: should make one with NED
         {
             // Convert to world-space using the parent's transform
             Transform parentTransform = transform.parent;

@@ -2,13 +2,14 @@ using UnityEngine;
 using Unity.MLAgents.Actuators;
 using MathNet.Numerics.LinearAlgebra;
 using System.Diagnostics;
-
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace DefaultNamespace.BlueROV2.Control
 { 
-    public class Residual : MonoBehaviour
+    public class Residual2 : MonoBehaviour
     {
-        PythonModelClient client;
+        PythonModelHttpClient client;
         Rigidbody rb;
 
         // Keep last step’s velocities so we can compute acceleration
@@ -28,7 +29,7 @@ namespace DefaultNamespace.BlueROV2.Control
 
         void Awake()
         {
-            client = FindObjectOfType<PythonModelClient>();
+            client = FindObjectOfType<PythonModelHttpClient>();
         }
 
         /// <summary>
@@ -61,14 +62,15 @@ namespace DefaultNamespace.BlueROV2.Control
         }
         */
 
-        public float[] GetResiduals()
+        public async Task<float[]> GetResiduals()
         {
             float[] features = GatherFeatures();
 
             // 2) send to Python, get residual accelerations
             sw.Restart();
-            residuals = client.QueryResiduals(features);
+            var residuals = await client.QueryResidualsAsync(features);
             sw.Stop();
+            print("Got residuals: " + string.Join(",", residuals));
             print("ELapsed time for query" + sw.Elapsed.TotalSeconds);
             return residuals;
         }

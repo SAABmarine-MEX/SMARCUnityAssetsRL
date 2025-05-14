@@ -5,6 +5,8 @@ using MathNet.Numerics.LinearAlgebra.Double;
 using Unity.Mathematics;
 using UnityEngine.Android;
 
+// TODO: implement delay
+
 namespace DefaultNamespace.BlueROV2.SITL
 {
     public class ArduSub : MonoBehaviour

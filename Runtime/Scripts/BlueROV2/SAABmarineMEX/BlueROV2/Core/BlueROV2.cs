@@ -35,7 +35,7 @@ namespace DefaultNamespace.BlueROV2.Core
         private bool useRLTraining = true;
         
         // If to use residual inference or not
-        private bool useResModel = true;
+        private bool useResModel = false;
         private bool isQuerying = false;
         
         
@@ -57,11 +57,12 @@ namespace DefaultNamespace.BlueROV2.Core
             if (sitl == null)
                 Debug.LogError("ArduSub component not found on this GameObject.");
             
-            // Residual
+            // Residual prepper
             resModel = GetComponent<ResidualPrepper>();
             if (resModel == null)
                 Debug.LogError("Residual component not found on this GameObject.");
 
+            // Residual client
             client = GetComponent<PythonModelHttpClient>();
             if (client == null)
                 Debug.LogError("Client not found on this GameObject.");

@@ -4,7 +4,7 @@ using Unity.MLAgents.Actuators;
 using MathNet.Numerics.LinearAlgebra;
 using DefaultNamespace.BlueROV2.Physics;
 using UnityEngine;
-
+using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 
 namespace DefaultNamespace.BlueROV2.Control
 {
@@ -31,10 +31,11 @@ namespace DefaultNamespace.BlueROV2.Control
             
         }
 
-        public override void OnEpisodeBegin()
+        public override void OnEpisodeBegin() // TODO: could move this to start since this will note do any episodes since it is not for training
         {
             // Reset the Brov to its starting position
-            Vector3 localStartPos = new Vector3(0.0f, 0.0f, 0.0f); // TODO: make it relative to the same origin as it will be irl
+            Vector3 startPos = NED.ConvertToRUF(dynamics.GetPosNED()); // Start pos from the scene
+            Vector3 localStartPos = startPos;
             Quaternion localStartRot = Quaternion.Euler(0, 0, 0);
             dynamics.SetZeroVels();
             dynamics.SetPose(localStartPos, localStartRot);
@@ -56,12 +57,12 @@ namespace DefaultNamespace.BlueROV2.Control
 
         public override void OnActionReceived(ActionBuffers actions)
         {
-            print("RESIDUAL AGENT ACTIONS");
+            //print("RESIDUAL AGENT ACTIONS");
             
             // Actions then used in BlueROV2 core script
             ActionSegment<float> actionsSeg = actions.ContinuousActions;
             currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
-            print(currActions[0] + "    " + currActions[1] + "   " + currActions[2]);
+            //print(currActions[0] + "    " + currActions[1] + "   " + currActions[2]);
         }
         
         public override void Heuristic(in ActionBuffers actionsOut)

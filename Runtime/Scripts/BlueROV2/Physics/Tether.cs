@@ -1,0 +1,120 @@
+using UnityEngine;
+
+namespace BlueROV2.Physics
+{
+    public class Tether : MonoBehaviour
+    {
+        public bool useTether = true;
+        
+        [Header("ROV & Cable Properties")]
+        public ArticulationBody rovRb;
+        //public Rigidbody rovRb;
+        // https://bluerobotics.com/store/cables-connectors/cables/fathom-rov-tether-rov-ready/
+        
+        private float rhoMat = 1000f;            // cable material density (kg/m³)
+        private float diameter = 0.0076f;         // m
+        private float rhoWater = 1025f;         // kg/m³
+        private float dragCd = 1.2f;            // cable drag coefficient. // https://link.springer.com/chapter/10.1007/978-94-009-4207-3_5 says 2.0. general cylinder is 1.2
+        
+        [Header("Attachment Offset (body frame)")]
+        // X forward, Y right, Z up
+        private Vector3 attachOffset = new Vector3(-0.16f, 0f, -0.22f); // https://bluerobotics.com/store/rov/bluerov2-accessories/brov-payload-skid/
+
+        private float bPerMeter;               // net buoyancy per meter (N/m)
+
+        private float g = 9.82f;
+        
+        [Header("Line Renderer Visuals")]
+        public float surfaceZ = 0f;
+        public Material lineMaterial;
+        private LineRenderer line;
+
+
+        void Start() {
+            float A = Mathf.PI * diameter * diameter / 4f;
+            bPerMeter = (rhoWater - rhoMat) * A * g;
+            
+            
+            // Create LineRenderer
+            line = gameObject.GetComponent<LineRenderer>();
+            if (line == null)
+            {
+                line = gameObject.AddComponent<LineRenderer>();
+            }
+
+            line.positionCount = 2;
+            line.startWidth = diameter;
+            line.endWidth = diameter;
+
+            // Set default material if not assigned
+            if (lineMaterial != null)
+            {
+                line.material = lineMaterial;
+            }
+            else
+            {
+                line.material = new Material(Shader.Find("Sprites/Default")); // fallback shader
+                line.material.color = Color.yellow;
+            }
+
+        }
+
+        void FixedUpdate()
+        {
+            if (!useTether)
+            {
+                line.positionCount = 0;
+                return;
+            }
+            
+            // 1) Depth (positive down)
+            float h = Mathf.Max(0f, -rovRb.transform.position.y); 
+
+            // 2) Vertical buoyant force
+            //Vector3 Fbuoy = bPerMeter * h * Vector3.up;
+            
+            // 3) Horizontal drag on cable
+            /*
+            Vector3 v = rovRb.linearVelocity; // world velocity of ROV
+            Vector3 vHoriz = new Vector3(v.x, 0f, v.z); // horizontal only
+            float L = h;
+            Vector3 Fdrag = -0.5f * rhoWater * dragCd * diameter * L
+                            * vHoriz.magnitude * vHoriz;
+             */
+            
+            // 2) Forces
+            Vector3 Fbuoy = bPerMeter * h * Vector3.up;
+            Vector3 v = rovRb.linearVelocity;
+            Vector3 vHoriz = new Vector3(v.x, 0f, v.z);
+            float L = h;
+            Vector3 Fdrag = -0.5f * rhoWater * dragCd * diameter * L * vHoriz.magnitude * vHoriz;
+            Debug.Log(Fdrag);
+            
+            
+            Vector3 Ftether = Fbuoy + Fdrag;
+
+            // Total tether force
+            //Vector3 Ftether = Fbuoy + Fdrag;
+            //Debug.Log(Fbuoy);
+            
+            // 4) Compute world‐space attach point
+            Vector3 worldAttach = rovRb.transform.TransformPoint(attachOffset);
+            
+            
+            // 5) Apply force at that point (generates both force and moment)
+            rovRb.AddForceAtPosition(Ftether, worldAttach);
+            
+            
+            // 6) Tether visualization
+            //Vector3 worldAttach = rovRb.transform.position + transform.TransformDirection(attachOffset);
+            // 3) Attachment point in world space
+            Vector3 worldSurface = new Vector3(worldAttach.x, surfaceZ, worldAttach.z);
+
+            line.SetPosition(0, worldAttach);
+            //Debug.Log(worldAttach);
+            line.SetPosition(1, worldSurface);
+            
+            
+        }
+    }
+}

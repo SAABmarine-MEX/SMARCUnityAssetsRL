@@ -4,17 +4,16 @@ namespace BlueROV2.Physics
 {
     public class Tether : MonoBehaviour
     {
-        public bool useTether = true;
+        private bool useTether = true;
         
         [Header("ROV & Cable Properties")]
-        public ArticulationBody rovRb;
-        //public Rigidbody rovRb;
+        public ArticulationBody rovAb;
         // https://bluerobotics.com/store/cables-connectors/cables/fathom-rov-tether-rov-ready/
         
         private float rhoMat = 1000f;            // cable material density (kg/m³)
         private float diameter = 0.0076f;         // m
         private float rhoWater = 1025f;         // kg/m³
-        private float dragCd = 1.2f;            // cable drag coefficient. // https://link.springer.com/chapter/10.1007/978-94-009-4207-3_5 says 2.0. general cylinder is 1.2
+        private float dragCd = 1.5f; //1.2f           // cable drag coefficient. // https://link.springer.com/chapter/10.1007/978-94-009-4207-3_5 says 2.0. general cylinder is 1.2
         
         [Header("Attachment Offset (body frame)")]
         // X forward, Y right, Z up
@@ -59,6 +58,11 @@ namespace BlueROV2.Physics
 
         }
 
+        public void SetUseTether(bool value)
+        {
+            useTether = value;
+        }
+
         void FixedUpdate()
         {
             if (!useTether)
@@ -68,14 +72,14 @@ namespace BlueROV2.Physics
             }
             
             // 1) Depth (positive down)
-            float h = Mathf.Max(0f, -rovRb.transform.position.y); 
+            float h = Mathf.Max(0f, -rovAb.transform.position.y); 
 
             // 2) Vertical buoyant force
             //Vector3 Fbuoy = bPerMeter * h * Vector3.up;
             
             // 3) Horizontal drag on cable
             /*
-            Vector3 v = rovRb.linearVelocity; // world velocity of ROV
+            Vector3 v = rovAb.linearVelocity; // world velocity of ROV
             Vector3 vHoriz = new Vector3(v.x, 0f, v.z); // horizontal only
             float L = h;
             Vector3 Fdrag = -0.5f * rhoWater * dragCd * diameter * L
@@ -84,29 +88,31 @@ namespace BlueROV2.Physics
             
             // 2) Forces
             Vector3 Fbuoy = bPerMeter * h * Vector3.up;
-            Vector3 v = rovRb.linearVelocity;
+            Vector3 v = rovAb.linearVelocity;
             Vector3 vHoriz = new Vector3(v.x, 0f, v.z);
             float L = h;
             Vector3 Fdrag = -0.5f * rhoWater * dragCd * diameter * L * vHoriz.magnitude * vHoriz;
-            Debug.Log(Fdrag);
+            //Debug.Log(Fdrag);
             
             
             Vector3 Ftether = Fbuoy + Fdrag;
+            
+            Ftether = new Vector3(Ftether.x, Ftether.y, Ftether.z*0.4f);
 
             // Total tether force
             //Vector3 Ftether = Fbuoy + Fdrag;
             //Debug.Log(Fbuoy);
             
             // 4) Compute world‐space attach point
-            Vector3 worldAttach = rovRb.transform.TransformPoint(attachOffset);
+            Vector3 worldAttach = rovAb.transform.TransformPoint(attachOffset);
             
             
             // 5) Apply force at that point (generates both force and moment)
-            rovRb.AddForceAtPosition(Ftether, worldAttach);
+            rovAb.AddForceAtPosition(Ftether, worldAttach);
             
             
             // 6) Tether visualization
-            //Vector3 worldAttach = rovRb.transform.position + transform.TransformDirection(attachOffset);
+            //Vector3 worldAttach = rovAb.transform.position + transform.TransformDirection(attachOffset);
             // 3) Attachment point in world space
             Vector3 worldSurface = new Vector3(worldAttach.x, surfaceZ, worldAttach.z);
 

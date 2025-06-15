@@ -6,6 +6,8 @@ using DefaultNamespace.BlueROV2.SITL;
 using DefaultNamespace.BlueROV2;
 using MathNet.Numerics.LinearAlgebra;
 using System;
+using BlueROV2.Physics;
+
 //using Codice.Client.Common.GameUI;
 
 /*
@@ -28,6 +30,8 @@ namespace DefaultNamespace.BlueROV2.Core
         private GameObject map; // map frame. To replicate standard ros map frame
         public Actuation6dof_Sub rosActuation;
         
+        public Tether tether;
+        
         
         // Flags
         // If to use ArduSub sitl or to use scaled max tau control
@@ -39,6 +43,10 @@ namespace DefaultNamespace.BlueROV2.Core
         // If to use residual inference or not
         private bool useResModel = false;
         private bool isQuerying = false;
+        
+        public bool useTether = true;
+        
+        // TODO: make so you can use tether as a flag here
         
         
         // Input 
@@ -74,6 +82,11 @@ namespace DefaultNamespace.BlueROV2.Core
             if (rosActuation == null)
                 Debug.LogError("Ros Actuation component not found on this GameObject.");
             
+            // Tether
+            tether = GetComponent<Tether>();
+            if (tether == null)
+                Debug.LogError("Tether component not found on this GameObject.");
+            
             // Agent
             Transform agentTransform = transform.Find("odom/base_link");
             if (agentTransform == null)
@@ -107,7 +120,9 @@ namespace DefaultNamespace.BlueROV2.Core
             agent.Setup(map);
 
             // Run update of dynamics in this script's FixedUpdate to give better understand of what is happening TODO: use set method instead
-            dynamics.allowFixedUpdate = false; 
+            dynamics.allowFixedUpdate = false;
+            
+            tether.SetUseTether(useTether);
         }
         
         async void FixedUpdate()

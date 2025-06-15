@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BlueROV2.Physics;
 using UnityEngine;
 using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 using DefaultNamespace.LookUpTable;
@@ -24,6 +25,8 @@ namespace DefaultNamespace.BlueROV2.Physics
         
         // Components
         public ArticulationBody mainBody;
+        public Tether tether;
+        
         
         /*
         public ArticulationBody prop_top_back_right;
@@ -56,7 +59,7 @@ namespace DefaultNamespace.BlueROV2.Physics
         double g = 9.82; // gravity m/s²
         double rho = 1000; // water density [kg/m^3]
         //double nabla = 0.0134; // volume of BlueRoV [m^3]
-        double nabla = 0.0141; // volume of BlueRoV [m^3]. "floating" still at 14.1 ish
+        double nabla = 0.014; // volume of BlueRoV [m^3]. "floating" still at 14.1 ish
 
 
         //Bouyancy point coordinates relative to report coordinate system
@@ -66,15 +69,15 @@ namespace DefaultNamespace.BlueROV2.Physics
         //Rotational damping (Ns/m)
         public double Xuu = 141; // #1.0
         double Yvv = 217; // #100.0
-        double Zww = 190; // #100.0
+        double Zww = 190; // #100.0. old 190
         double Kpp = 1.19; // #10.0
         double Mqq = 0.47; // #100.0
-        double Nrr = 1.5; // #150.0 
+        double Nrr = 2.0; // #150.0 old 1.5
         
         //Translational damping (Ns/m)
         double Xu = 13.7;
         double Yv = 0;
-        double Zw = 33;
+        double Zw = 33; // old 33
         double Kp = 0;
         double Mq = 0.8;
         double Nr = 0;
@@ -577,8 +580,35 @@ namespace DefaultNamespace.BlueROV2.Physics
             mainBody.linearVelocity = Vector3.zero;
             mainBody.angularVelocity = Vector3.zero;
         }
+
+        public void SetVelsNed(Vector3 linVelNed, Vector3 angVelNed) // Ned input
+        {
+            // convert to RUF (unity frame)
+            var linVel = NED.ConvertToRUF(angVelNed); // FRD is same as NED for ANGLES ONLY
+            var angVel = FRD.ConvertAngularVelocityToRUF(angVelNed); // FRD is same as NED for ANGLES ONLY
+            
+            // convert to world frame
+            Vector3 worldLinearVelocity = transform.TransformDirection(linVel);
+            Vector3 worldAngularVelocity = transform.TransformDirection(angVel);
+
+            // set the velocities
+            mainBody.linearVelocity = worldLinearVelocity;
+            mainBody.angularVelocity = worldAngularVelocity;
+        }
         public void SetPose(Vector3 localPosition, Quaternion localRotation) //TODO: should make one with NED
         {
+            
+            // Convert to world-space using the parent's transform
+            Transform parentTransform = transform.parent;
+            Vector3 worldPosition = parentTransform.TransformPoint(localPosition);
+            //Quaternion worldRotation = parentTransform.rotation * localRotation;
+            mainBody.TeleportRoot(worldPosition, localRotation);
+        }
+        
+        public void SetPoseNed(Vector3 localPositionNed, Quaternion localRotationNed) // Input is NED
+        {
+            Vector3 localPosition = NED.ConvertToRUF(localPositionNed);
+            Quaternion localRotation = NED.ConvertToRUF(localRotationNed);
             // Convert to world-space using the parent's transform
             Transform parentTransform = transform.parent;
             Vector3 worldPosition = parentTransform.TransformPoint(localPosition);

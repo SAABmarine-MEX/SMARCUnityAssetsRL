@@ -5,8 +5,8 @@ using DefaultNamespace.BlueROV2.Physics;
 using DefaultNamespace.BlueROV2.SITL;
 using System;
 using DefaultNamespace.BlueROV2.ROS.Subscribers;
+using BlueROV2.Physics;
 
-// TODO: does smarc have something this can be replaced with?
 
 namespace DefaultNamespace.BlueROV2.Core
 {
@@ -16,6 +16,9 @@ namespace DefaultNamespace.BlueROV2.Core
         public BrovDynamics dynamics;
         public ArduSub sitl;
         public ResidualControl agent;
+        
+        public Tether tether;
+
         
         // To give manual mode for executble with residual inference
         public ResidualPrepper resPrepper;
@@ -35,7 +38,7 @@ namespace DefaultNamespace.BlueROV2.Core
         
         
         public bool useRos = true;
-
+        public bool useTether = true;
         
         
         // Input 
@@ -70,12 +73,19 @@ namespace DefaultNamespace.BlueROV2.Core
             if (rosActuation == null)
                 Debug.LogError("Ros Actuation component not found on this GameObject.");
             
+            // Tether
+            tether = GetComponent<Tether>();
+            if (tether == null)
+                Debug.LogError("Tether component not found on this GameObject.");
+            
             // Both dynamics and agent needs awareness of the map frame
             dynamics.Setup(map);
             agent.Setup(map);
             
             // Run update of dynamics in this script's FixedUpdate to give better understand of what is happening
             dynamics.allowFixedUpdate = false; 
+            
+            tether.SetUseTether(useTether); // TODO: maybe change so this could be changed when it is running
         }
         
         async void FixedUpdate()

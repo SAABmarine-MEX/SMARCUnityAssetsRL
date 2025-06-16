@@ -6,11 +6,12 @@ using DefaultNamespace.BlueROV2.Physics;
 using UnityEngine;
 using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 
+// This script is used from the residual modelling with mlagents llapi 
+
 namespace DefaultNamespace.BlueROV2.Control
 {
     public class ResidualControl : Agent
     {
-        //public bool isPrior = true; // Set in scene. if false - "real" dynamics
         public BrovDynamics dynamics;
         private GameObject map;
         public TeleopController teleopController;
@@ -27,19 +28,15 @@ namespace DefaultNamespace.BlueROV2.Control
             {
                 Debug.LogError("dynamics not set");
             }
-            //map = GameObject.Find("map"); // Map frame as in ros
-            
         }
 
-        public override void OnEpisodeBegin() // TODO: could move this to start since this will note do any episodes since it is not for training
+        public override void OnEpisodeBegin() // TODO: could move this to Start() since this will not do any episodes since it is not for training, as of now
         {
             // Reset the Brov to its starting position
             Vector3 startPos = NED.ConvertToRUF(dynamics.GetPosNED()); // Start pos from the scene
-            Vector3 localStartPos = startPos;
-            Quaternion localStartRot = Quaternion.Euler(0, 0, 0);
+            Quaternion startRot = Quaternion.Euler(0, 0, 0);
             dynamics.SetZeroVels();
-            dynamics.SetPose(localStartPos, localStartRot);
-            
+            dynamics.SetPose(startPos, startRot);
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -57,12 +54,9 @@ namespace DefaultNamespace.BlueROV2.Control
 
         public override void OnActionReceived(ActionBuffers actions)
         {
-            //print("RESIDUAL AGENT ACTIONS");
-            
             // Actions then used in BlueROV2 core script
             ActionSegment<float> actionsSeg = actions.ContinuousActions;
             currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]);
-            //print(currActions[0] + "    " + currActions[1] + "   " + currActions[2]);
         }
         
         public override void Heuristic(in ActionBuffers actionsOut)

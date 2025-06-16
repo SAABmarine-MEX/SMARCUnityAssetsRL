@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class CheckpointSingle : MonoBehaviour
 {
-    public int checkpointIndex; // TODO: now this is index is set from unity. make it instead so in trackcheckpoints or somewhere else gives the index by loop over Checkpoints in Unity
+    public int checkpointIndex;
     /*
     private TrackCheckpoints trackCheckpoints;
     private void OnTriggerEnter(Collider other)

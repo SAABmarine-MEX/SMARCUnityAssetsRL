@@ -11,7 +11,7 @@ using System;
 
 /*
 TODO:
-- make checkpointsManager into a separete script
+- make CheckpointsManager into a separete script
 - make random position to gates
 */
 
@@ -28,11 +28,16 @@ namespace DefaultNamespace.BlueROV2.Control
         // RL stuff
         // Gates
         private GameObject gates;
-        private List<GameObject> checkpoints = new List<GameObject>(); // List to hold the checkpoint GameObjects
+        // List to hold all checkpoint GameObjects
+        private List<GameObject> checkpoints = new List<GameObject>();
+        // List to hold the two next gates, in NED
         private List<Vector3> next2Gates = new List<Vector3>() { Vector3.zero, Vector3.zero };
+        // Index of next gate. First gate has index 0
         private int iNextGate = 0;
+        // Distances to next gate
+        private Vector3 d_prev;
+        private Vector3 d_curr;
         
-        // Reward
         Vector<float> prevActions = Vector<float>.Build.Dense(6, 0f);
         Vector<float> currActions = Vector<float>.Build.Dense(6, 0f);
         private Vector3 startPos;
@@ -41,21 +46,17 @@ namespace DefaultNamespace.BlueROV2.Control
         private Vector3 currPos;
         
         // Reward weights
-        private float lambda1 = 1f, lambda2 = 0.02f, lambda3 = -10f, lambda4 = -2e-4f, lambda5 = -1e-4f; // NOTE: lambda3=-10 in report
-        private float w_progress = 80f, w_allign = 0.1f, w_smoothness = 0.5f; // w_progress = 80 so that when brov drives with 50% forward, it will represent +~1 TODO: would like to have these relative each other
+        private float lambda1 = 1f, lambda2 = 0.02f, lambda3 = -10f, lambda4 = -2e-4f, lambda5 = -1e-4f; // lambdas from https://www.nature.com/articles/s41586-023-06419-4
+        private float w_progress = 80f, w_allign = 0.1f, w_smoothness = 0.2f; // w_progress = 80 so that when brov drives with 50% forward, it will represent +~1 TODO: would be nice to have these relative each other for better interpetation of the weights
 
         
-        // Random spawn
-        public Vector3 spawnAreaCenter = Vector3.zero;
-        public Vector3 spawnAreaSize = new Vector3(2f, -2f, 9f); // ENU safe size of tank
-        public int collisionMask = 0; // Default to everything
+        [Header("Random spawn options")]
+        //public Vector3 spawnAreaCenter = Vector3.zero;
+        //public Vector3 spawnAreaSize = new Vector3(2f, -2f, 9f); // Safe size of tank, unity coordinate frame
+        //public int collisionMask = 0; // Default to everything
         public float checkRadius = 0.2f; // How close it can be to another object
         public int maxAttempts = 10; // Max tries before giving up
-        public bool randomizeRotation = true; // Toggle if you want random rotation
-
-
-        private Vector3 d_prev;
-        private Vector3 d_curr;
+        //public bool randomizeRotation = true; // Toggle if you want random rotation
         
 
         public void Setup(GameObject mapframe) 
@@ -66,35 +67,24 @@ namespace DefaultNamespace.BlueROV2.Control
         void Start()
         {
             // Check if components exists
-            if (dynamics == null)
-            {
-                Debug.LogError("dynamics not set");
-            }
-
-            if (map == null)
-            {
-                Debug.LogError("map not set");
-            }
+            if (dynamics == null) { Debug.LogError("dynamics not set"); }
+            if (map == null) { Debug.LogError("map not set"); }
             
-            // Init position
+            // Get init position
             startQ = dynamics.GetQuaternionNED();
             startPos = dynamics.GetPosNED();
             prevPos = startPos;
             currPos = prevPos;
             
-            // Find gates game object
+            // Find the gates
             Transform current = transform.parent;
             while (current != null)
             {
-                //Debug.Log("Checking: " + current.name);
                 foreach (Transform sibling in current)
                 {
-                    //Debug.Log("Sibling name: " + sibling.name);
                     if (sibling.name == "Checkpoints")
                     {
-                        //Debug.Log("Found 'Checkpoints' GameObject!");
                         gates = sibling.gameObject;
-                        //Debug.Log("Parent of " + sibling.name + " is: " + (sibling.parent != null ? sibling.parent.name : "null"));
                         break;
                     }
                 }
@@ -106,14 +96,13 @@ namespace DefaultNamespace.BlueROV2.Control
             }
             else // Add the checkpoints to the checkpoints list
             {
-                // Assumption: Gates are sorted in the desired track order in the Unity scene
+                // ASSUMPTION: Gates are sorted in the desired track order in the Unity scene
                 for (int i = 0; i < gates.transform.childCount; i++)
                 {
                     Transform child = gates.transform.GetChild(i);
                     GameObject childGameObject = child.gameObject;
                     childGameObject.GetComponent<CheckpointSingle>().checkpointIndex = i;
                     checkpoints.Add(childGameObject);
-                    //print(checkpoints[i].gameObject.GetComponent<CheckpointSingle>().checkpointIndex);
                 }
             }
         }
@@ -128,21 +117,19 @@ namespace DefaultNamespace.BlueROV2.Control
             RandomizeStartPosition();
             //FindClosestWaypoint();
             
-            
-            
             // Reset next gate positions to the first two gates in the track
             //if (iNextGate+1 == gatePositions.Count) { next2Gates[1] = gatePositions[0]; }
             //else { next2Gates[1] = gatePositions[iNextGate+1]; }
             iNextGate = 0;
             
             Vector3 checkpoint1Pos = map.transform.InverseTransformPoint(checkpoints[0].transform.position);
-            var gatePos1Temp = checkpoint1Pos.To<NED>().ToUnityVec3();
+            var gatePos1NED = checkpoint1Pos.To<NED>().ToUnityVec3();
             
             Vector3 checkpoint2Pos = map.transform.InverseTransformPoint(checkpoints[1].transform.position);
-            var gatePos2Temp = checkpoint1Pos.To<NED>().ToUnityVec3();
+            var gatePos2NED = checkpoint1Pos.To<NED>().ToUnityVec3();
             
-            next2Gates[0] = gatePos1Temp;
-            next2Gates[1] = gatePos2Temp;
+            next2Gates[0] = gatePos1NED;
+            next2Gates[1] = gatePos2NED;
         }
 
         public void RandomizeStartPosition()
@@ -150,13 +137,6 @@ namespace DefaultNamespace.BlueROV2.Control
             int attempts = 0;
             bool foundPosition = false;
             
-            /*
-            Vector3 startUnity = new Vector3(
-                startPos.y, // NED Y -> Unity X
-                -startPos.z, // NED Z -> Unity Y (inverted)
-                startPos.x // NED X -> Unity Z
-            );
-            */
             Vector3 startUnity = NED.ConvertToRUF(startPos);
 
             while (attempts < maxAttempts && !foundPosition)
@@ -167,7 +147,6 @@ namespace DefaultNamespace.BlueROV2.Control
                     UnityEngine.Random.Range(-0.5f, 0.5f)
                 );
                 Vector3 randomPosition = startUnity + randomOffset;
-                //Vector3 randomPositionUnity = randomPosition.To<ENU>().ToUnityVec3();
                 // Convert local position relative to the map object to world position
                 Vector3 worldPosition = map.transform.TransformPoint(randomPosition);
                 
@@ -206,24 +185,19 @@ namespace DefaultNamespace.BlueROV2.Control
         
         private Quaternion RandomRotation()
         {
-            // TODO: make it relative start orientation. baslically +/- start orientation
             // Random rotation around each axis, small angles
             Vector3 randomEuler = new Vector3(
                 UnityEngine.Random.Range(-10f, 10f),  // Roll (x)
                 UnityEngine.Random.Range(-10f, 10f),  // Pitch (y)
-                UnityEngine.Random.Range(-10f, 10f)   // Yaw (z) // TODO: CHANGE BACK TO +/- 45DEG
+                UnityEngine.Random.Range(-10f, 10f)   // Yaw (z) // before +/- 45DEG
             );
+            
             // Convert to Quaternion
             Quaternion randomRotation = Quaternion.Euler(randomEuler);
-            //Quaternion<NED> rotationNed = randomRotation.To<NED>();
-            //Quaternion rotationNedUnity = rotationNed.ToUnityQuaternion();
+            
             // Apply relative to current rotation
             Quaternion newRot = startQ * randomRotation;
             Quaternion qRUF = NED.ConvertToRUF(newRot);
-            //Quaternion<FLU> qENU = qRUF.To<FLU>();
-            //Quaternion<NED> nedQ = new Quaternion<NED>(newRot);
-            //Quaternion<FLU> newRotUnity = nedQ.To<FLU>();
-            //Quaternion newRotUnityUnity = newRotUnity.ToUnityQuaternion();
 
             return qRUF;
         }
@@ -231,7 +205,7 @@ namespace DefaultNamespace.BlueROV2.Control
         public override void CollectObservations(VectorSensor sensor)
         {
             /*
-            * This method adds observations to the sensor of the agent. 
+            * This method adds observations to the sensor of the agent.
             * The observations are used as input to the neural network.
             */
             // 1. State
@@ -240,23 +214,19 @@ namespace DefaultNamespace.BlueROV2.Control
             
             // 2. Relative position to next gate
             Vector3 relVecToGateInput = next2Gates[0] - dynamics.GetPosNED(); // 1x3
-            sensor.AddObservation(relVecToGateInput); 
+            sensor.AddObservation(relVecToGateInput);
             
             // 3. Previous action
-            sensor.AddObservation(prevActions);
+            sensor.AddObservation(prevActions); // 1x6
         }
         
 
         public override void OnActionReceived(ActionBuffers actions)
         {
             ActionSegment<float> actionsSeg = actions.ContinuousActions;
-            currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]*0.5f); // scale down
-            //Debug.Log(currActions[0] + "     " + currActions[1] + "     " + currActions[2] + "     " + currActions[3] + "           " + currActions[4] + "     " + currActions[5]);
-            //Vector<float> diff = currActions - prevActions;
-            //Debug.Log(diff[0] + "     " + diff[1] + "     " + diff[2] + "     " + diff[3] + "           " + diff[4] + "     " + diff[5]);
+            currActions = Vector<float>.Build.Dense(actionsSeg.Length, i => actionsSeg[i]*0.5f); // scale down for safety
             
             float r = CalculateReward();
-            //print("Reward: " + r);
             AddReward(r);
             
             prevPos = currPos;
@@ -274,6 +244,7 @@ namespace DefaultNamespace.BlueROV2.Control
                 continuousActions[i] = teleopInput[i];
             }
         }
+        
         private Vector<float> ScaleActions(Vector<float> actions)
         {
             Vector<float> scaledActions = Vector<float>.Build.Dense(actions.Count);
@@ -285,7 +256,7 @@ namespace DefaultNamespace.BlueROV2.Control
             return scaledActions;
         }
 
-        public Vector<float> GetScaledActions() // TODO: använd ovan dirr istället bara
+        public Vector<float> GetScaledActions()
         {
             return ScaleActions(currActions);
         }
@@ -294,12 +265,9 @@ namespace DefaultNamespace.BlueROV2.Control
         {
             if (dynamics.GetHeight() >= 0)
             {
-                //Debug.LogError("AAAAJ TAK");
                 AddReward(-1.0f);
                 EndEpisode();
             }
-            
-           
         }
         /*
         void OnDrawGizmos()
@@ -321,21 +289,35 @@ namespace DefaultNamespace.BlueROV2.Control
 
         private float CalculateReward()
         {
-            // r_progression
+            // 1) Progression reward
             float d_prev = Vector3.Distance(next2Gates[0], prevPos);
             currPos = dynamics.GetPosNED();
             float d_curr = Vector3.Distance(next2Gates[0], currPos);
             float r_prog = w_progress * (d_prev - d_curr);
             //print("R PROG: " + r_prog);
             
-            // Facing gate / allign with target reward
+            
+            // 2) Facing gate / allign with target reward
             var r = checkpoints[iNextGate].transform.forward;
             var d = dynamics.GetForwardUnitVec();
             //float r_allign = w_allign * ((Vector3.Dot(r, d) + 1) * 0.5f); // w_allign * [0.0, 1.0]
             float r_allign = w_allign * ((Vector3.Dot(r, d))); // w_allign * [-1.0, 1.0]
             //print("R ALLIGN: " + r_allign);
             
-            // smoothness
+            
+            // 3) Smooth action reward
+            //Vector<float> actionDiff = currActions - prevActions;
+            float squaredDifference = 0.0f;
+            for (int i = 0; i < currActions.Count; i++)
+            {
+                float diff = currActions[i] - prevActions[i];
+                squaredDifference += diff * diff; // max value: 1 since biggest possible diff is 1 
+            }
+            //float r_smooth = lambda5 * squaredDifference;
+            float r_smooth = w_smoothness * squaredDifference;
+            
+            /*
+            // Different types of smooth reward function 
             float diffSum = 0f;
             for (int i = 0; i < currActions.Count; i++) {
                 diffSum += Mathf.Abs(currActions[i] - prevActions[i]);
@@ -346,7 +328,6 @@ namespace DefaultNamespace.BlueROV2.Control
             //Debug.Log(diff[0] + "     " + diff[1] + "     " + diff[2] + "     " + diff[3] + "           " + diff[4] + "     " + diff[5]);
             //Debug.Log(r_cmd2);
             
-            Vector<float> actionDiff = currActions - prevActions;
             float maxL2 = Mathf.Sqrt(currActions.Count); // e.g., sqrt(6)
             float smoothness = 1f - Mathf.Clamp((float) actionDiff.L2Norm() / maxL2, 0f, 1f);
             //print("SMOOOOOOOTH l2");
@@ -354,7 +335,6 @@ namespace DefaultNamespace.BlueROV2.Control
             //print("R SMOOTH: " + smoothness);
             
             
-            float actionDiffNorm = (float) actionDiff.L2Norm();
             float magnitude = Mathf.Pow(actionDiffNorm, 2);
             float r_cmd = lambda5*magnitude;
             
@@ -366,52 +346,48 @@ namespace DefaultNamespace.BlueROV2.Control
             }
             float rSmooth = Mathf.Exp(-1 * sqDiff);
             //print("SMOOOOOTH: "+ rSmooth);
+            */
 		
             // Sum tot reward
-            //float r_t = r_prog + r_allign + r_cmd2;
-            float r_t = r_prog + r_cmd2; // TODO: denna är temp
-
+            //float r_t = r_prog + r_allign + r_smooth;
+            // Do without r_allign now since we know yaw is trash in real,
+            // so try to create a policy that dont yaw as much
+            float r_t = r_prog + r_smooth;
 
             return r_t;
         }
     
-    private void OnTriggerEnter(Collider other)
-    {
-        CheckpointSingle cpData = other.GetComponent<CheckpointSingle>();
-        if (cpData != null)
+        private void OnTriggerEnter(Collider other)
         {
-            if (cpData.checkpointIndex == iNextGate)
+            CheckpointSingle cpData = other.GetComponent<CheckpointSingle>();
+            if (cpData != null)
             {
-                //print(iNextGate);
-                AddReward(5f);
-                if ((iNextGate + 1) == checkpoints.Count)
+                if (cpData.checkpointIndex == iNextGate)
                 {
-                    iNextGate = 0;
-                    EpisodeInterrupted();
-                    return;
+                    AddReward(5f);
+                    if ((iNextGate + 1) == checkpoints.Count)
+                    {
+                        iNextGate = 0;
+                        EpisodeInterrupted();
+                        return;
+                    }
+                    iNextGate = (iNextGate + 1) % checkpoints.Count;
+                    
+                    Vector3 nextGate = map.transform.InverseTransformPoint(checkpoints[iNextGate].transform.position);
+                    nextGate = nextGate.To<NED>().ToUnityVec3();
+                    next2Gates[1] = nextGate; 
+                    next2Gates[0] = next2Gates[1];
+                }else{
+                    //Debug.Log("Wrong order!");
+                    //AddReward(-1f);
                 }
-                iNextGate = (iNextGate + 1) % checkpoints.Count;
-                
-                Vector3 nextGate = map.transform.InverseTransformPoint(checkpoints[iNextGate].transform.position);
-                nextGate = nextGate.To<NED>().ToUnityVec3();
-                //print("next gate index: " + iNextGate);
-                next2Gates[1] = nextGate; 
-                next2Gates[0] = next2Gates[1];
-                //Debug.Log("next gate: " + next2Gates[0]);
-            }else{
-                // TODO: fix so that it doesnt give this multiple times when passing through
-                // Wrong order!
-                //Debug.Log("FEL ORDNING");
-                //AddReward(-1f); // TODO: den vart bättre med denna men eftersom den är skum så borde det inte bli så??
+            }
+            
+            if (other.gameObject.tag == "Wall")
+            {
+                AddReward(-1f);
+                EndEpisode();
             }
         }
-        if (other.gameObject.tag == "Wall")
-        {
-            //print("AJ VÄGG");
-            AddReward(-1f);
-            EndEpisode();
-        }
-    }
-
     }
 }

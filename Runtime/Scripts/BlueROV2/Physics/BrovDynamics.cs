@@ -11,7 +11,7 @@ using MathNet.Numerics.LinearAlgebra.Double;
 
 /*
  * The article: An Open-Source Benchmark Simulator: Control of a BlueROV2 Underwater Robot, refered to as (OSBS) in the code,
- * is where the bluerov2 parameter values are taken from. More details: https://vbn.aau.dk/ws/portalfiles/portal/505520780/jmse_10_01898.pdf
+ * is where most of the bluerov2 parameter values are taken from. More details: https://vbn.aau.dk/ws/portalfiles/portal/505520780/jmse_10_01898.pdf
  */
 
 
@@ -347,7 +347,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             var total_force_sum = reactive_force_sum + input_forces_sum; // NOTE: if want to add teather forces, it should be added here
             var vel_vec_dot = M_inv*total_force_sum;
 
-            // m*a  TODO: ?
+            // m*a
             tauAddedInertia = M_A * vel_vec_dot;
             
             // TODO: J och D verkar dålig från pappret, l 
@@ -597,7 +597,6 @@ namespace DefaultNamespace.BlueROV2.Physics
         }
         public void SetPose(Vector3 localPosition, Quaternion localRotation) //TODO: should make one with NED
         {
-            
             // Convert to world-space using the parent's transform
             Transform parentTransform = transform.parent;
             Vector3 worldPosition = parentTransform.TransformPoint(localPosition);
@@ -615,6 +614,7 @@ namespace DefaultNamespace.BlueROV2.Physics
             //Quaternion worldRotation = parentTransform.rotation * localRotation;
             mainBody.TeleportRoot(worldPosition, localRotation);
         }
+        
         public void SetPoseMap(Vector3 localPosition, Quaternion localRotation)
         {
             // Convert to world-space using the parent's transform

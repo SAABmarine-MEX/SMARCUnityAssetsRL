@@ -114,6 +114,7 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
            );
            
            // TODO: maybe also get velocities, but only pos for now since it also most often start still "ish" from the bags
+           
            //dynamics.SetInputTauNED(new float[] {0f, 0f, 0f, 0f, 0f, 0f});
            //dynamics.SetZeroVels();
            
@@ -131,8 +132,6 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
            Quaternion rotNewYaw = Quaternion.Euler(eulerNewYaw);
            Quaternion rotNewYawNED = NED.ConvertFromRUF(rotNewYaw);
            dynamics.SetPoseNed(currPosNED, rotNewYawNED);
-
-           //hasInitialized = true;
        }
    }
 }

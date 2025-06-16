@@ -19,23 +19,15 @@ namespace DefaultNamespace.BlueROV2.Core
 {
     public class Brov : MonoBehaviour
     {
-        // Components
-        public BrovDynamics dynamics;
-        public ArduSub sitl;
-        public RLController agent; // Agent is only for training, not ros rl inference
+        [Header("Options")]
         
-        public ResidualPrepper resModel;
-        public PythonModelHttpClient client;
-        
-        private GameObject map; // map frame. To replicate standard ros map frame
-        public Actuation6dof_Sub rosActuation;
-        
-        public Tether tether;
-        
-        
-        // Flags
-        // If to use ArduSub sitl or to use scaled max tau control
+        [Tooltip("Use ArduSub sitl or use scaled max tau control")]
         public bool useArdusub = true;
+        
+        [Tooltip("Toggle tether dynamics")]
+        public bool useTetherDynamics = true;
+        [Tooltip("Toggle tether visuals")]
+        public bool useTetherVisuals = true;
         
         // If to use training pipeline or ros inference
         private bool useRLTraining = true;
@@ -44,9 +36,24 @@ namespace DefaultNamespace.BlueROV2.Core
         private bool useResModel = false;
         private bool isQuerying = false;
         
-        public bool useTether = true;
+
+        [Header("BlueROV2 components")]
+        public BrovDynamics dynamics;
+        public ArduSub sitl;
+        public Tether tether;
+        public RLController agent; // Agent is only for training, not ros rl inference
         
-        // TODO: make so you can use tether as a flag here
+        
+        [Header("Residual modelling components")]
+        public ResidualPrepper resModel;
+        public PythonModelHttpClient client;
+        
+        
+        [Header("ROS components")]
+        public Actuation6dof_Sub rosActuation;
+        
+       
+        private GameObject map; // map frame. To replicate standard ros map frame
         
         
         // Input 
@@ -122,7 +129,8 @@ namespace DefaultNamespace.BlueROV2.Core
             // Run update of dynamics in this script's FixedUpdate to give better understand of what is happening TODO: use set method instead
             dynamics.allowFixedUpdate = false;
             
-            tether.SetUseTether(useTether);
+            tether.SetUseTetherDynamics(useTetherDynamics);
+            tether.SetUseTetherVisuals(useTetherVisuals);
         }
         
         async void FixedUpdate()
@@ -201,7 +209,6 @@ namespace DefaultNamespace.BlueROV2.Core
             
             // 5. Update dynamics
             dynamics.UpdateDynamics();
-            
         }
     }
 }

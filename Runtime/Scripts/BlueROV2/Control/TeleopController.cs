@@ -1,5 +1,5 @@
 /*
- * The TeleopController class is responsible for controlling the robot during teleop mode. It is responsible for reading the joystick input and sending the appropriate commands to the robot.
+ * The TeleopController class is responsible for controlling the robot during teleop mode. It is responsible for reading the keyboard input and sending the appropriate commands to the robot.
  * It shall control the robot by giving forces to a rigid body in all 6 dof, 3 forces and 3 torques.
  */
 

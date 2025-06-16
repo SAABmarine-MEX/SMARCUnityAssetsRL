@@ -10,36 +10,49 @@ using BlueROV2.Physics;
 
 namespace DefaultNamespace.BlueROV2.Core
 {
-    public class BlueROV2Residual : MonoBehaviour
+    public class BlueROV2Residual : MonoBehaviour // TODO: combine this with BlueROV2.cs
     {
+        [Header("Options")]
+        
+        [Tooltip("Toggles residual dynamic modelling inference")]
+        public bool useResModel = true;
+        private bool isQuerying = false;
+        
+        [Tooltip("Use ArduSub sitl or use scaled max tau control")]
+        public bool useArdusub = true; // Bool to declare if to use ArduSub sitl or to use scaled max tau control
+        
+        [Tooltip("Used to simulate 'real'. Only used to validate residual training so keep false otherwise")]
+        public bool isReal = false; //
+        
+        [Tooltip("Get actuation commands from ros")]
+        public bool useRos = true;
+        
+        [Tooltip("Toggle tether dynamics")]
+        public bool useTetherDynamics = true;
+        [Tooltip("Toggle tether visuals")]
+        public bool useTetherVisuals = true;
+        
+        
+        [Header("BlueROV2 components")]
         // The three building blocks for the BlueROV2
         public BrovDynamics dynamics;
         public ArduSub sitl;
-        public ResidualControl agent;
-        
         public Tether tether;
-
         
+        
+        [Header("Residual modelling components")]
+        public ResidualControl agent;
         // To give manual mode for executble with residual inference
         public ResidualPrepper resPrepper;
         public PythonModelHttpClient client;
-        // If to use residual inference or not
-        public bool useResModel = true;
-        private bool isQuerying = false;
-         
-        public bool useArdusub = true; // Bool to declare if to use ArduSub sitl or to use scaled max tau control
-        public bool isReal = false; //
         
-        // map frame. To replicate standard ros map frame
-        private GameObject map;
         
+        [Header("ROS components")]
         public Actuation6dof_Sub rosActuation;
 
         
-        
-        public bool useRos = true;
-        public bool useTether = true;
-        
+        // map frame. To replicate standard ros map frame
+        private GameObject map;
         
         // Input 
         private float[] dofControl = new float[] { 1500, 1500, 1500, 1500, 1500, 1500 };
@@ -85,7 +98,9 @@ namespace DefaultNamespace.BlueROV2.Core
             // Run update of dynamics in this script's FixedUpdate to give better understand of what is happening
             dynamics.allowFixedUpdate = false; 
             
-            tether.SetUseTether(useTether); // TODO: maybe change so this could be changed when it is running
+            // TODO: maybe change so this could be changed when it is running
+            tether.SetUseTetherDynamics(useTetherDynamics);
+            tether.SetUseTetherVisuals(useTetherVisuals);
         }
         
         async void FixedUpdate()
@@ -120,7 +135,7 @@ namespace DefaultNamespace.BlueROV2.Core
                 bodyTau = dynamics.GetBodyTauFromMaxTau(u);
             }
             
-            // If isReal, meaning trying to simulate a "real" enviornment that differ from prior
+            // If isReal, meaning trying to simulate a "real" environment that differ from prior
             if (isReal)
             {
                 for (int i = 0; i < bodyTau.Length; i++) { bodyTau[i] *= 1.5f; }

@@ -8,13 +8,15 @@ namespace DefaultNamespace.BlueROV2.Physics
     {
         public double PwmToForce2(double pwm)
         {
-            // pwm: This one is nomrilizaed [-1, 1]
+            // pwm: [-1, 1]
             // TODO: testa denna igen efter tagit bort this.pwm
             double force = -140.3*math.pow(pwm,9)+389.9*math.pow(pwm,7)-404.1*math.pow(pwm,5)+176.0*math.pow(pwm,3)+8.9*pwm;
             return force;
         }
         public double PwmToForce(double pwm)
         {
+            // pwm:  [-1, 1]
+            // Scale to [1100, 1900] for this function
             pwm = ((pwm + 1.0f) / 2.0f) * (1900 - 1100) + 1100;
             double kgf = 
                 -3.04338931856672e-13f * Mathf.Pow((float) pwm, 5) +

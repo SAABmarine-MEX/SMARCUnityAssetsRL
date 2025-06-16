@@ -44,7 +44,6 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
         {
             // ros stuff
             ros = ROSConnection.GetOrCreateInstance();
-            //ros.Subscribe<Int32MultiArrayMsg>(topic, ReceiveControlOutput);
             ros.Subscribe<OverrideRCInMsg>(topic, ReceiveControlOutput);
             
             lastMessageTime = Time.time;
@@ -58,6 +57,7 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
         void FixedUpdate()
         {
             // TODO: kanske implementera i sitl istället och se hur ardusub gör det
+            
             // If no new message for a while, reset control
             if (Time.time - lastMessageTime > timeoutDuration && !isReset)
             {
@@ -68,11 +68,10 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
 
         void ReceiveControlOutput(OverrideRCInMsg msg)
         {
+            // msg: [pitch, roll, throttle (up/down), yaw, forward, lateral] (each between [1100, 1900])
+            
             lastMessageTime = Time.time;
             isReset = false;
-
-            // msg - [pitch, roll, throttle (up/down), yaw, forward, lateral] (each between [1100, 1900])
-            //print("---RECIEVED CONTROL OUTPUT---");
             
             // With this way, it could practically take the whole overridercin msg eventhough everything above index 5 is useless
             for (int i = 0; i < dofControl.Length; i++)
@@ -85,8 +84,6 @@ namespace DefaultNamespace.BlueROV2.ROS.Subscribers
                 }
             }
             (dofControl[0], dofControl[1]) = (dofControl[1], dofControl[0]); // Swap roll and pitch to work with the rest of the code structure, especially important in sitl code
-            //print("DOF CONTROLS RECIEVED");
-            //print(dofControl[0] + "     " + dofControl[1] + "     " + dofControl[2]);
 
         }
         

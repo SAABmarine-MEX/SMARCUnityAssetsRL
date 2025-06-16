@@ -28,7 +28,7 @@ namespace DefaultNamespace.BlueROV2.ROS.Publishers
         // ros stuff
         ROSConnection ros;
         public string topic = "/brov/sim/odometry";
-        public string parent_frame_id = "map";
+        public string parent_frame_id = "map"; // TODO: change to mocap_gt
         public string the_child_frame_id = "base_link_gt";
         
         void Start()
@@ -42,9 +42,7 @@ namespace DefaultNamespace.BlueROV2.ROS.Publishers
         }
 
         void PublishOdometry()
-        {
-            //print("PUUUUUUUUUUUUUUUB");
-            // Can't do built in attribute like header.stamp so need to build up individually... TODO: you can by nesting, fix
+        {            
             // Header 
             HeaderMsg headerMsg = new HeaderMsg
             {

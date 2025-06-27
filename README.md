@@ -48,7 +48,6 @@ SMARCUnityAssets/Runtime/Scripts/BlueROV2/
 
 This fork requires Unity Machine Learning Agents Toolkit (ML-Agents), specifically ML-Agents 3.0. Here is how to install it to your Unity (NOTE: this has been done on a Ubuntu computer and with Unity 6):
 
-TODO: maybe write this in the standard repo instead
 1. Open up the Unity project
 2. Press in top left `Assets>View in Package Manager`
 3. In the Package Manager's left pane, press `Unity Registry`

@@ -53,9 +53,7 @@ TODO: maybe write this in the standard repo instead
 2. Press in top left `Assets>View in Package Manager`
 3. In the Package Manager's left pane, press `Unity Registry`
 4. In the search bar, search for `ml agents`
-5. Now you should see this. Press `Install` and then you are done!
-
-
+5. Now you should see ML Agents 3.0. Press `Install` and then you are done!
 
 
 ## Quick start

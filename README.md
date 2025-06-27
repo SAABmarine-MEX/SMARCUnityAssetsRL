@@ -1,6 +1,46 @@
 # SMARC Unity Assets
 This is a package containing all of the SMARC Unity assets and scripts including vehicles, dynamics, sensors and more. 
 
+## SAABmarine-MEX Fork
+### *BlueROV2 with residual dynamics modelling and DRL*
+
+This fork contains the work from the [SAABmarine-MEX](https://github.com/SAABmarine-MEX) project. It has created a BlueROV2 simulation with residual dynamic modelling and DRL capabilities.
+
+The work have been structured as follows (the .meta files are not included for easier visual interperation):
+
+```
+SMARCUnityAssets/Runtime/Scripts/BlueROV2/
+├── ArduSub.cs
+├── Control/
+│   ├── ResidualControl.cs
+│   ├── RL/
+│   │   ├── CheckpointSingle.cs
+│   │   └── RLController.cs
+│   └── TeleopController.cs
+├── Core/
+│   ├── BlueROV2.cs
+│   └── BlueROV2Residual.cs
+├── Physics/
+│   ├── BrovDynamics.cs
+│   ├── ResidualDynammics/
+│   │   ├── HttpClient.cs
+│   │   ├── protobuf/
+│   │   │   └── Model.cs
+│   │   └── ResidualPrepper.cs
+│   ├── Tether.cs
+│   ├── Thruster.cs
+│   └── ThrusterT200.cs
+├── ROS/
+│   ├── Publishers/
+│   │   ├── Odometry_Pub.cs
+│   │   └── TF/
+│   │       └── MapToBaselink_Pub.cs
+│   └── Subscribers/
+│       ├── Actuation6dof_Sub.cs
+│       ├── InitPoseSubscriber.cs
+│       └── YawOverrideSubscriber.cs
+```
+
 ## Quick start
 If you:
 - Are new to Unity

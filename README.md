@@ -44,6 +44,13 @@ SMARCUnityAssets/Runtime/Scripts/BlueROV2/
 │       └── YawOverride_Sub.cs
 ```
 
+### Requirments & Installation
+
+This fork requires Unity Machine Learning Agents Toolkit (ML-Agents), specifically ML-Agents 3.0. Here is how to install it to your Unity 6 (NOTE: this has been done on a Ubuntu computer):
+
+
+
+
 ## Quick start
 If you:
 - Are new to Unity

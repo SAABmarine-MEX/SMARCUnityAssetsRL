@@ -12,7 +12,7 @@ The work have been structured as follows (the .meta files are not included for e
 SMARCUnityAssets/Runtime/Scripts/BlueROV2/
 ├── ArduSub.cs
 ├── Control/
-│   ├── ResidualControl.cs
+│   ├── ResidualController.cs
 │   ├── RL/
 │   │   ├── CheckpointSingle.cs
 │   │   └── RLController.cs

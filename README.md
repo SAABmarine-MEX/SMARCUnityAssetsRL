@@ -36,8 +36,8 @@ SMARCUnityAssets/Runtime/Scripts/BlueROV2/
 │   │       └── MapToBaselink_Pub.cs
 │   └── Subscribers/
 │       ├── Actuation6dof_Sub.cs
-│       ├── InitPoseSubscriber.cs
-│       └── YawOverrideSubscriber.cs
+│       ├── InitPose_Sub.cs
+│       └── YawOverride_Sub.cs
 ```
 
 ## Quick start

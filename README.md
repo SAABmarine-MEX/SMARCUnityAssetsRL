@@ -10,7 +10,7 @@ The work have been structured as follows (the .meta files are not included for e
 
 ```
 SMARCUnityAssets/Runtime/Scripts/BlueROV2/
-├── ArduSub.cs
+├── ArduSub.cs (SITL for ArduSub's manual mode)
 
 ├── Control/
 │   ├── ResidualController.cs (Used to interact with the sim via mlagents llapi when training residuals)

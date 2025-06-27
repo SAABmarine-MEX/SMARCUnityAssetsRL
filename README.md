@@ -12,25 +12,24 @@ The work have been structured as follows (the .meta files are not included for e
 SMARCUnityAssets/Runtime/Scripts/BlueROV2/
 ├── ArduSub.cs
 ├── Control/
-│   ├── ResidualController.cs
-│   ├── RL/
+│   ├── ResidualController.cs (Used to interact with the sim via mlagents llapi when training residuals)
+│   ├── RL/ (Contains the RL stuff, using mlagents)
 │   │   ├── CheckpointSingle.cs
 │   │   └── RLController.cs
-│   └── TeleopController.cs
-├── Core/
-│   ├── BlueROV2.cs
-│   └── BlueROV2Residual.cs
-├── Physics/
-│   ├── BrovDynamics.cs
-│   ├── ResidualDynammics/
+│   └── TeleopController.cs (A teleop controller specifically to mimic that of the real BlueROV2 Manual mode)
+├── Core/ (Core scripts containing the main loop)
+│   ├── BlueROV2.cs (For normal usage, residual inference and rl)
+│   └── BlueROV2Residual.cs (For residual training)
+├── Physics/ (All physics related scripts)
+│   ├── BrovDynamics.cs (Both articulated body getters & setters and force model. Could be divided seperatly to follow SMaRC structure better)
+│   ├── ResidualDynammics/ (Residual dynamics modelling client)
 │   │   ├── HttpClient.cs
 │   │   ├── protobuf/
 │   │   │   └── Model.cs
 │   │   └── ResidualPrepper.cs
-│   ├── Tether.cs
-│   ├── Thruster.cs
-│   └── ThrusterT200.cs
-├── ROS/
+│   ├── Tether.cs (Visualization and dynamics modelling of BlueROv2 tether)
+│   └── ThrusterT200.cs (BlueROV2's thruster modelling)
+├── ROS/ (All ros2 stuff. Could be integrated/modified to be used from VehicleComponents/ROS/ to follow SMaRC structure better)
 │   ├── Publishers/
 │   │   ├── Odometry_Pub.cs
 │   │   └── TF/

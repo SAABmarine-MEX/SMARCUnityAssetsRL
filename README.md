@@ -6,6 +6,10 @@ This is a package containing all of the SMARC Unity assets and scripts including
 
 This fork contains the work from the [SAABmarine-MEX](https://github.com/SAABmarine-MEX) project. It has created a BlueROV2 simulation with residual dynamic modelling and DRL capabilities.
 
+### System Architecture
+
+
+### Folder Structure
 The work have been structured as follows (the .meta files are not included for easier visual interperation):
 
 ```
@@ -53,6 +57,8 @@ This fork requires Unity Machine Learning Agents Toolkit (ML-Agents), specifical
 3. In the Package Manager's left pane, press `Unity Registry`
 4. In the search bar, search for `ml agents`
 5. Now you should see ML Agents 3.0. Press `Install` and then you are done!
+
+### How to Run
 
 
 ## Quick start

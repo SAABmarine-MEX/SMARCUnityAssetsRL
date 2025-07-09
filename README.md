@@ -21,6 +21,9 @@ Modelling the **thrusters**, a polynomial was fitted based on real data from the
 
 The **BlueROV2's dynamics** was modelled using the Fossen model with parameter values from [this paper](https://www.mdpi.com/2077-1312/10/12/1898) as well as from own testing in the tank.
 
+#### Residual Dynamics Modelling
+...
+
 ### Folder Structure
 The work have been structured as follows (the .meta files are not included for easier visual interperation):
 

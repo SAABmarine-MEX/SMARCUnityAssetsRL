@@ -7,11 +7,18 @@ This is a package containing all of the SMARC Unity assets and scripts including
 This fork contains the work from the [SAABmarine-MEX](https://github.com/SAABmarine-MEX) project. It has created a BlueROV2 simulation with residual dynamic modelling and DRL capabilities.
 
 ### System Architecture
-This picture show how the sim of the BlueROV2 is structured in relation to its real counterpart. The purpose is to mimic the real one in terms of control flow and dynamics with a few constraints to fit the scope of this work. Part of the ArduSub code was converted into C# code and implemnted into the sim. The specific part was the 6dof control flow as this was the main usage for the scope. One could argue that it would be better to implement ArduSub's excisting full SITL, but as the ...
 
 <div align="center">
   <img src="Documentation/Media/BlueROV2RealVsSim.png" alt="BlueROV2 real vs real structure" width="800"/>
 </div>
+
+This picture show how the sim of the BlueROV2 is structured in relation to its real counterpart. The purpose is to mimic the real one in terms of control flow and dynamics with a few constraints to fit the scope of this work. 
+
+Part of the **ArduSub** code was converted into C# code and implemnted into the sim. The specific part was the 6dof control flow as this was the main usage for the scope. One could argue that it would be better to use ArduSub's excisting full SITL, but as many of the functionality is not needed for the scope, this solution to directly implement the relevant parts into the Unity sim was choosen.
+
+Modelling the **thrusters**, a polynomial was fitted based on real data from the BlueROV2's T200 thrusters, [cite](www.mdpi.com/2076-3417/14/17/7453).
+
+The **BlueROV2's dynamics** was modelled using the Fossen model with parameter values from [this paper](https://www.mdpi.com/2077-1312/10/12/1898) as well as from own testing in the tank.
 
 ### Folder Structure
 The work have been structured as follows (the .meta files are not included for easier visual interperation):

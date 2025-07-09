@@ -2,12 +2,12 @@
 This is a package containing all of the SMARC Unity assets and scripts including vehicles, dynamics, sensors and more. 
 
 ---
-## SAABmarine-MEX Fork
+# SAABmarine-MEX Fork
 ### *BlueROV2 with residual dynamics modelling and DRL*
 
 This fork contains the work from the [SAABmarine-MEX](https://github.com/SAABmarine-MEX) project. It has created a BlueROV2 simulation with residual dynamic modelling and DRL capabilities.
 
-### System Architecture
+## System Architecture
 
 <div align="center">
   <img src="Documentation/Media/BlueROV2RealVsSim.png" alt="BlueROV2 real vs real structure" width="800"/>
@@ -21,7 +21,7 @@ Modelling the **thrusters**, a polynomial was fitted based on real data from the
 
 The **BlueROV2's dynamics** was modelled using the Fossen model with parameter values from [this paper](https://www.mdpi.com/2077-1312/10/12/1898) as well as from own testing in the tank.
 
-#### Residual Dynamics Modelling
+### Residual Dynamics Modelling
 ...
 
 ### Folder Structure

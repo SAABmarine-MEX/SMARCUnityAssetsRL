@@ -27,7 +27,7 @@ The **BlueROV2's dynamics** was modelled using the Fossen model with parameter v
   <img src="Documentation/Media/ResidualSim.png" alt="Residual modelling in sim structure" width="800"/>
 </div>
 
-The structure for the residual dynamic modelling inference can be visulized with the above picture. Learn more on how to start the residual inference on the Python side in [this repo](https://github.com/SAABmarine-MEX/saabmarineMEX_learning/tree/svgp/residual_modelling). On the Unity side, make sure you set `useResModel` to true in `BlueROV.cs` (see the folder structure below to find this file) to be able to connect to the Python server.
+The structure for the residual dynamic modelling inference can be visulized with the above picture. Learn more on how to start the residual inference on the Python side in [this repo](https://github.com/SAABmarine-MEX/saabmarineMEX_learning/tree/svgp/residual_modelling). Their you can also learn more about how to train. On the Unity side, make sure you set `useResModel` to true in `BlueROV.cs` (see the folder structure below to find this file) to be able to connect to the Python server.
 
 ### Folder Structure
 The work have been structured as follows (the .meta files are not included for easier visual interperation):

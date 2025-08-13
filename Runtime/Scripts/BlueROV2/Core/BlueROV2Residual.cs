@@ -41,7 +41,7 @@ namespace DefaultNamespace.BlueROV2.Core
         
         
         [Header("Residual modelling components")]
-        public ResidualControl agent;
+        public ResidualController agent;
         // To give manual mode for executble with residual inference
         public ResidualPrepper resPrepper;
         public PythonModelHttpClient client;

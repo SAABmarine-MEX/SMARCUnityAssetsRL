@@ -67,12 +67,12 @@ namespace DefaultNamespace.BlueROV2.Physics
 
         //Added from OSBS
         //Rotational damping (Ns/m)
-        public double Xuu = 141; // #1.0
-        double Yvv = 217; // #100.0
-        double Zww = 190; // #100.0. old 190
-        double Kpp = 1.19; // #10.0
-        double Mqq = 0.47; // #100.0
-        double Nrr = 2.0; // #150.0 old 1.5
+        public double Xuu = 141;
+        double Yvv = 217; 
+        double Zww = 190;
+        double Kpp = 1.19;
+        double Mqq = 0.47; 
+        double Nrr = 2.0; // OSBS is 1.5 but compared to real mocap data it has more yaw drag so increased it to match better
         
         //Translational damping (Ns/m)
         double Xu = 13.7;

@@ -6,7 +6,7 @@ using DefaultNamespace.BlueROV2.Physics;
 
 namespace DefaultNamespace.BlueROV2.ROS.Subscribers
 {
-    public class InitPoseSubscriber : MonoBehaviour
+    public class InitPose_Sub : MonoBehaviour
     {
         private string topic = "/initial_pose";
         public BrovDynamics dynamics;

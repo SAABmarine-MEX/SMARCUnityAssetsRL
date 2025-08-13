@@ -76,7 +76,7 @@ using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 
 namespace DefaultNamespace.BlueROV2.ROS.Subscribers
 {
-   public class YawOverrideSubscriber : MonoBehaviour
+   public class YawOverride_Sub : MonoBehaviour
    {
        private string topic = "/pose_real";
        //private string topic = "/initial_pose";

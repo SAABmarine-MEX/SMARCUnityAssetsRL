@@ -10,7 +10,7 @@ using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 
 namespace DefaultNamespace.BlueROV2.Control
 {
-    public class ResidualControl : Agent
+    public class ResidualController : Agent
     {
         public BrovDynamics dynamics;
         private GameObject map;

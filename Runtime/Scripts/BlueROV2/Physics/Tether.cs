@@ -113,7 +113,7 @@ namespace BlueROV2.Physics
                 Vector3 Ftether = Fbuoy + Fdrag;
                 // Playing around with z-component (x-component in NED) since from comparing to the real mocap data,
                 // it seems to not contribute that much. Lowered it and the sim seemed to match better with real
-                Ftether = new Vector3(Ftether.x, Ftether.y, Ftether.z*0.1f); 
+                Ftether = new Vector3(Ftether.x, Ftether.y, Ftether.z*0.01f); 
                 
                 // Apply force at that point (also generates moment)
                 rovAb.AddForceAtPosition(Ftether, worldAttach);
